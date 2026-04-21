@@ -22,7 +22,7 @@ using namespace std;
 
 // ===================== 全局配置 =====================
 // 服务端监听端口号
-const int PORT = 8888;
+const int PORT = 9527;
 // 接收缓冲区大小
 const int BUFFER_SIZE = 4096;
 // 用户数据存储文件名（账号 密码 昵称）
