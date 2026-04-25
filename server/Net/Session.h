@@ -3,8 +3,8 @@
 #include <WinSock2.h>
 #include <queue>
 #include <mutex>
-#include <string> 
-#include <thread> 
+#include <string>
+#include <thread>
 #include "Protocol.h"
 
 using namespace std;
@@ -14,17 +14,18 @@ const int BUFFER_SIZE = 4096;
 class Session
 {
 public:
-    SOCKET sock;
-    char recvBuf[BUFFER_SIZE];
-    int recvLen;
+    SOCKET sock;               // 客户端的连接socket
+    char recvBuf[BUFFER_SIZE]; // 接收缓冲区
+    int recvLen;               // 当前收到多少数据
 
-    queue<string> sendQueue;
-    mutex sendMutex;
+    queue<string> sendQueue; // 待发送消息队列
+    mutex sendMutex;         // 防止多线程冲突
 
 public:
-    Session(SOCKET s);
+    Session(SOCKET s); // 创建Session
     void StartRecv();
 };
-
+// 接收线程（独立线程运行）
 void RecvThread(Session *session);
+// 处理一条完整消息
 void ProcessMsg(Session *session, const char *data, int len);

@@ -9,14 +9,14 @@ Session::Session(SOCKET s) : sock(s), recvLen(0)
     memset(recvBuf, 0, BUFFER_SIZE); // 缓冲区清零
 }
 
-// ===================== 处理解析完成的消息 =====================
+// 处理解析完成的消息
 void ProcessMsg(Session *session, const char *data, int len)
 {
     // 输出收到的消息（作业展示用）
     cout << "[服务端] 收到消息：" << data << endl;
 }
 
-// ===================== 客户端接收线程（每个客户端独立线程） =====================
+// 每个客户端接收独立线程
 void RecvThread(Session *session)
 {
     char tempBuf[BUFFER_SIZE];
@@ -32,7 +32,7 @@ void RecvThread(Session *session)
         memcpy(session->recvBuf + session->recvLen, tempBuf, ret);
         session->recvLen += ret;
 
-        // ===================== 消息分包处理（解决粘包） =====================
+        // 消息分包处理
         while (session->recvLen >= (int)sizeof(MsgHeader))
         {
             MsgHeader header;
@@ -45,7 +45,7 @@ void RecvThread(Session *session)
             if (session->recvLen < (int)totalLen)
                 break;
 
-            // ===================== 一条完整消息已收到 =====================
+            // 一条完整消息已收到 
             // 交给业务逻辑处理
             ProcessMsg(session, session->recvBuf + sizeof(MsgHeader), header.msgLen);
 
@@ -55,7 +55,7 @@ void RecvThread(Session *session)
         }
     }
 
-    // ===================== 客户端断开连接，清理资源 =====================
+    // 客户端断开连接，清理资源缓存
     closesocket(session->sock); // 关闭socket
     cout << "[服务端] 客户端断开连接" << endl;
     delete session; // 释放Session对象

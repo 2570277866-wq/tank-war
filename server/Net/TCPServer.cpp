@@ -7,14 +7,14 @@ using namespace std;
 
 bool TCPServer::Init()
 {
-    // 1. 初始化Windows网络库 Winsock
+    // 初始化Windows网络库 Winsock
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 
-    // 2. 创建监听socket（流式TCP）
+    // 创建监听socket（流式TCP）
     listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    // 3. 绑定IP和端口
+    //  绑定IP和端口
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(PORT);       // 端口号转网络字节序
@@ -22,10 +22,10 @@ bool TCPServer::Init()
 
     bind(listenSocket, (sockaddr *)&addr, sizeof(addr));
 
-    // 4. 开始监听，最大等待队列100
+    // 开始监听，最大等待队列100
     listen(listenSocket, 100);
 
-    // 5. 输出启动信息（作业展示用）
+    // 输出启动信息（作业展示用）
     cout << "=====================================" << endl;
     cout << "          TCP 服务端已启动" << endl;
     cout << "          监听端口：" << PORT << endl;
@@ -40,7 +40,7 @@ void TCPServer::Start()
     thread(&TCPServer::AcceptLoop, this).detach();
 }
 
-// ===================== 接收客户端连接的循环（独立线程） =====================
+// 接收客户端连接的循环（独立线程）
 void TCPServer::AcceptLoop()
 {
     cout << "[服务端] 等待客户端连接..." << endl;
