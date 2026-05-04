@@ -1,6 +1,7 @@
 #include <graphics.h>
 #include "Core/GameLoop.h"
 #include "UI/MenuUI.h"
+#include "UI/LoginUI.h"
 
 int main() {
     initgraph(800, 600, SHOWCONSOLE);
@@ -11,6 +12,10 @@ int main() {
     while (true) {
         MenuResult mr = MenuUI::showMain();
         if (mr == MenuResult::EXIT) break;
+
+        LoginInfo loginInfo;
+        LoginResult lr = LoginUI::show(loginInfo);
+        if (lr == LoginResult::BACK) continue;
 
         SelectResult sr = MenuUI::showTankSelect();
         if (!sr.confirmed) continue;
