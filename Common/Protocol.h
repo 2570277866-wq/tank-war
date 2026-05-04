@@ -115,7 +115,4 @@ constexpr int      MAX_BULLETS   = 64;
 constexpr int      HEARTBEAT_MS  = 3000;
 constexpr int      RECONNECT_MS  = 10000;
 
-namespace MapConfig {
-    constexpr int WIDTH  = 800;
-    constexpr int HEIGHT = 600;
-}
+

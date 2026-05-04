@@ -45,8 +45,8 @@ namespace TankConfig {
 }
 
 namespace MapConfig {
-    constexpr int WIDTH  = 1200;
-    constexpr int HEIGHT = 800;
+    constexpr int WIDTH  = 800;
+    constexpr int HEIGHT = 600;
 }
 
 namespace NetConfig {
