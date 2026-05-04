@@ -63,6 +63,8 @@ void GameLoop::update(float dt) {
     updateBullets(dt);
     checkCollisions();
     checkGameOver();
+
+    m_particles.update(dt);
 }
 
 void GameLoop::updateBullets(float dt) {
@@ -83,6 +85,8 @@ void GameLoop::checkCollisions() {
         if (m_localTank && Collision::bulletHitsTank(*bullet, *m_localTank)) {
             if (bullet->getOwner() != m_localTank->getPlayerID()) {
                 m_localTank->takeDamage(bullet->getDamage());
+                m_particles.emitExplosion(bullet->getPos(), RGB(255, 150, 50));
+                m_particles.emitHit(bullet->getPos(), bullet->getDamage());
                 bullet->destroy();
                 continue;
             }
@@ -91,6 +95,8 @@ void GameLoop::checkCollisions() {
         if (m_enemyTank && Collision::bulletHitsTank(*bullet, *m_enemyTank)) {
             if (bullet->getOwner() != m_enemyTank->getPlayerID()) {
                 m_enemyTank->takeDamage(bullet->getDamage());
+                m_particles.emitExplosion(bullet->getPos(), RGB(255, 150, 50));
+                m_particles.emitHit(bullet->getPos(), bullet->getDamage());
                 bullet->destroy();
             }
         }
@@ -278,6 +284,7 @@ void GameLoop::draw() {
     drawTank(m_enemyTank.get(), RGB(200, 60, 60), RGB(255, 80, 80));
 
     drawBullets();
+    m_particles.draw();
     drawHUD();
 
     if (m_gameOver) {

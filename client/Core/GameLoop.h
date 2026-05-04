@@ -6,6 +6,7 @@
 #include "Bullet.h"
 #include "InputHandler.h"
 #include "Collision.h"
+#include "../Effect/ParticleSystem.h"
 #include "../Net/NetClient.h"
 #include "../Net/MsgCodec.h"
 #include <graphics.h>
@@ -51,8 +52,9 @@ private:
     std::unique_ptr<Tank>  m_enemyTank;
     std::vector<std::unique_ptr<Bullet>> m_bullets;
 
-    InputHandler m_input;
-    NetClient*   m_netClient = nullptr;
+    InputHandler    m_input;
+    NetClient*      m_netClient = nullptr;
+    ParticleSystem  m_particles;
 
     bool     m_prevSpace = false;
     bool     m_prevF = false;
