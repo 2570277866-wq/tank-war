@@ -86,11 +86,17 @@ void Tank::applyInput(const InputState& input) {
 void Tank::update(float dt) {
     if (!m_alive) return;
 
-    // 技能CD递减
     if (m_skillCooldown > 0) m_skillCooldown -= dt;
     if (m_skillCooldown < 0) m_skillCooldown = 0;
 
-    // 射击间隔递减
+    if (m_skillTimer > 0) {
+        m_skillTimer -= dt;
+        if (m_skillTimer <= 0) {
+            m_skillTimer = 0;
+            onSkillEnd();
+        }
+    }
+
     if (m_shootTimer > 0) m_shootTimer -= dt;
 }
 
@@ -113,6 +119,7 @@ void Tank::useSkill() {
     if (m_skillCooldown > 0) return;
 
     m_skillCooldown = getSkillCooldownTime();
+    m_skillTimer = getSkillDuration();
     onSkillStart();
 }
 

@@ -60,10 +60,11 @@ protected:
     bool    m_alive = true;
 
     // 技能相关
-    float   m_skillCooldown = 0.0f;  // 当前CD计时
+    float   m_skillCooldown = 0.0f;
+    float   m_skillTimer = 0.0f;
     bool    m_shieldActive = false;
     bool    m_sprintActive = false;
-    float   m_shootTimer = 0.0f;      // 射击间隔计时
+    float   m_shootTimer = 0.0f;
 
     // ====== 受保护的方法，子类可覆盖 ======
     void _activateShield();

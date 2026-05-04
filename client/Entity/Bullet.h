@@ -2,7 +2,7 @@
 #pragma once
 
 #include "../../Common/Protocol.h"
-#include "Tank.h"
+#include "../../Common/Config.h"
 
 class Bullet {
 public:
