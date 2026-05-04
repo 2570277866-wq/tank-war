@@ -6,6 +6,8 @@
 #include "Bullet.h"
 #include "InputHandler.h"
 #include "Collision.h"
+#include "../Net/NetClient.h"
+#include "../Net/MsgCodec.h"
 #include <graphics.h>
 #include <vector>
 #include <memory>
@@ -29,6 +31,7 @@ public:
     const std::vector<std::unique_ptr<Bullet>>& getBullets() const { return m_bullets; }
 
     void setLocalTankType(TankType type) { m_localTankType = type; }
+    void setNetClient(NetClient* nc) { m_netClient = nc; }
     void fireBullet();
 
 private:
@@ -49,6 +52,7 @@ private:
     std::vector<std::unique_ptr<Bullet>> m_bullets;
 
     InputHandler m_input;
+    NetClient*   m_netClient = nullptr;
 
     bool     m_prevSpace = false;
     bool     m_prevF = false;

@@ -53,6 +53,13 @@ void GameLoop::update(float dt) {
     if (spacePressed) fireBullet();
     if (fPressed && m_localTank) m_localTank->useSkill();
 
+    if (m_netClient && m_netClient->isConnected()) {
+        char buf[256];
+        uint16_t len;
+        MsgCodec::encodeInput(input, buf, len);
+        m_netClient->sendMsg(MsgID::C2S_INPUT, buf, len);
+    }
+
     updateBullets(dt);
     checkCollisions();
     checkGameOver();
@@ -118,6 +125,13 @@ void GameLoop::fireBullet() {
     );
 
     m_localTank->resetShootTimer();
+
+    if (m_netClient && m_netClient->isConnected() && m_localTank) {
+        char buf[256];
+        uint16_t len;
+        MsgCodec::encodeShoot(m_localTank->getPlayerID(), m_localTank->getPos(), m_localTank->getAngle(), buf, len);
+        m_netClient->sendMsg(MsgID::C2S_SHOOT, buf, len);
+    }
 }
 
 // ============ 渲染 ============
