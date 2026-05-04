@@ -7,6 +7,7 @@
 #include "InputHandler.h"
 #include "Collision.h"
 #include "../Effect/ParticleSystem.h"
+#include "../Effect/GameMap.h"
 #include "../Net/NetClient.h"
 #include "../Net/MsgCodec.h"
 #include <graphics.h>
@@ -56,6 +57,7 @@ private:
     InputHandler    m_input;
     NetClient*      m_netClient = nullptr;
     ParticleSystem  m_particles;
+    GameMap         m_map;
 
     bool     m_prevSpace = false;
     bool     m_prevF = false;

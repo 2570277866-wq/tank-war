@@ -82,6 +82,12 @@ void GameLoop::checkCollisions() {
     for (auto& bullet : m_bullets) {
         if (!bullet->isAlive()) continue;
 
+        if (m_map.checkBulletCollision(bullet->getPos(), 4.0f, bullet->getDamage())) {
+            m_particles.emitExplosion(bullet->getPos(), RGB(200, 150, 50), 6);
+            bullet->destroy();
+            continue;
+        }
+
         if (m_localTank && Collision::bulletHitsTank(*bullet, *m_localTank)) {
             if (bullet->getOwner() != m_localTank->getPlayerID()) {
                 m_localTank->takeDamage(bullet->getDamage());
@@ -181,10 +187,7 @@ void GameLoop::drawMap() {
     setlinestyle(PS_SOLID, 2);
     rectangle(0, 0, MapConfig::WIDTH - 1, MapConfig::HEIGHT - 1);
 
-    setfillcolor(RGB(80, 80, 80));
-    fillrectangle(380, 200, 420, 400);
-    fillrectangle(380, 200, 420, 400);
-    fillrectangle(580, 350, 620, 550);
+    m_map.draw();
 }
 
 void GameLoop::drawTank(Tank* tank, COLORREF bodyColor, COLORREF turretColor) {
@@ -316,6 +319,7 @@ void GameLoop::draw() {
 
     drawBullets();
     m_particles.draw();
+    m_map.drawGrassOverlay();
     drawHUD();
 
     if (m_gameOver) {
