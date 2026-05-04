@@ -8,6 +8,9 @@
 #include "Collision.h"
 #include "../Effect/ParticleSystem.h"
 #include "../Effect/GameMap.h"
+#include "../Effect/DeathAnimator.h"
+#include "../UI/Minimap.h"
+#include "../UI/GameOverUI.h"
 #include "../Net/NetClient.h"
 #include "../Net/MsgCodec.h"
 #include <graphics.h>
@@ -58,6 +61,11 @@ private:
     NetClient*      m_netClient = nullptr;
     ParticleSystem  m_particles;
     GameMap         m_map;
+    DeathAnimator   m_deathAnim;
+
+    int     m_totalDamage = 0;
+    int     m_kills = 0;
+    float   m_gameTime = 0.0f;
 
     bool     m_prevSpace = false;
     bool     m_prevF = false;

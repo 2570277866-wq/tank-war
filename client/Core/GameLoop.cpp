@@ -65,6 +65,11 @@ void GameLoop::update(float dt) {
     checkGameOver();
 
     m_particles.update(dt);
+    m_deathAnim.update(dt);
+
+    if (m_running && !m_gameOver) {
+        m_gameTime += dt;
+    }
 }
 
 void GameLoop::updateBullets(float dt) {
@@ -93,6 +98,7 @@ void GameLoop::checkCollisions() {
                 m_localTank->takeDamage(bullet->getDamage());
                 m_particles.emitExplosion(bullet->getPos(), RGB(255, 150, 50));
                 m_particles.emitHit(bullet->getPos(), bullet->getDamage());
+                m_totalDamage += bullet->getDamage();
                 bullet->destroy();
                 continue;
             }
@@ -103,6 +109,8 @@ void GameLoop::checkCollisions() {
                 m_enemyTank->takeDamage(bullet->getDamage());
                 m_particles.emitExplosion(bullet->getPos(), RGB(255, 150, 50));
                 m_particles.emitHit(bullet->getPos(), bullet->getDamage());
+                m_totalDamage += bullet->getDamage();
+                if (!m_enemyTank->isAlive()) m_kills++;
                 bullet->destroy();
             }
         }
@@ -320,7 +328,13 @@ void GameLoop::draw() {
     drawBullets();
     m_particles.draw();
     m_map.drawGrassOverlay();
+    m_deathAnim.draw();
     drawHUD();
+
+    if (m_localTank && m_enemyTank) {
+        Minimap::draw(m_localTank->getPos(), m_enemyTank->getPos(),
+                      m_localTank->isAlive(), m_enemyTank->isAlive());
+    }
 
     if (m_gameOver) {
         setfillcolor(RGB(0, 0, 0));
