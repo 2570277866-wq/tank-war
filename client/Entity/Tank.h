@@ -31,6 +31,7 @@ public:
     // ============ 操作 ============
     void takeDamage(int dmg);    // 被击中扣血（服务端调用）
     void useSkill();             // 释放技能
+    void setPosFromSnapshot(const TankState& ts);
     bool canShoot() const;       // 技能CD好了才能射
     float getShootTimer() const { return m_shootTimer; }
     void resetShootTimer() { m_shootTimer = 0.3f; } // 射击间隔 0.3s

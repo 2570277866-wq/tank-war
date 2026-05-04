@@ -34,6 +34,7 @@ public:
     void setLocalTankType(TankType type) { m_localTankType = type; }
     void setNetClient(NetClient* nc) { m_netClient = nc; }
     void fireBullet();
+    void applySnapshot(const Snapshot& snap);
 
 private:
     void updateBullets(float dt);
@@ -58,4 +59,5 @@ private:
 
     bool     m_prevSpace = false;
     bool     m_prevF = false;
+    uint32_t m_lastSnapSeq = 0;
 };

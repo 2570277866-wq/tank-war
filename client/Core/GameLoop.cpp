@@ -113,6 +113,37 @@ void GameLoop::checkGameOver() {
     }
 }
 
+void GameLoop::applySnapshot(const Snapshot& snap) {
+    if (snap.frameSeq <= m_lastSnapSeq) return;
+    m_lastSnapSeq = snap.frameSeq;
+
+    for (int i = 0; i < 2; i++) {
+        const TankState& ts = snap.tanks[i];
+        Tank* tank = (ts.playerID == 0) ? m_localTank.get() : m_enemyTank.get();
+        if (!tank) continue;
+
+        if (ts.playerID == m_localTank->getPlayerID()) {
+            float dx = ts.pos.x - tank->getPos().x;
+            float dy = ts.pos.y - tank->getPos().y;
+            if (dx * dx + dy * dy > 25.0f) {
+                Vec2 corrected = { ts.pos.x, ts.pos.y };
+            }
+        } else {
+            Vec2 newPos = { ts.pos.x, ts.pos.y };
+        }
+
+        tank->setPosFromSnapshot(ts);
+    }
+
+    m_bullets.clear();
+    for (int i = 0; i < snap.bulletCount && i < MAX_BULLETS; i++) {
+        const BulletState& bs = snap.bullets[i];
+        m_bullets.emplace_back(
+            std::make_unique<Bullet>(bs.pos, bs.vel, bs.owner, bs.damage)
+        );
+    }
+}
+
 void GameLoop::fireBullet() {
     if (!m_localTank || !m_localTank->canShoot()) return;
 

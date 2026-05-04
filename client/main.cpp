@@ -30,17 +30,14 @@ int main() {
             char buf[256];
             uint16_t len;
 
+            MsgCodec::encodeLogin(
+                std::string(loginInfo.username.begin(), loginInfo.username.end()),
+                std::string(loginInfo.password.begin(), loginInfo.password.end()),
+                buf, len);
+
             if (lr == LoginResult::LOGIN_OK) {
-                MsgCodec::encodeLogin(
-                    std::string(loginInfo.username.begin(), loginInfo.username.end()),
-                    std::string(loginInfo.password.begin(), loginInfo.password.end()),
-                    buf, len);
                 netClient.sendMsg(MsgID::C2S_LOGIN, buf, len);
             } else {
-                MsgCodec::encodeLogin(
-                    std::string(loginInfo.username.begin(), loginInfo.username.end()),
-                    std::string(loginInfo.password.begin(), loginInfo.password.end()),
-                    buf, len);
                 netClient.sendMsg(MsgID::C2S_REGISTER, buf, len);
             }
 
@@ -54,6 +51,27 @@ int main() {
         game.setLocalTankType(sr.type);
         game.setNetClient(&netClient);
         game.start();
+
+        netClient.setOnMsgCallback([&game](MsgID id, const char* data, uint16_t len) {
+            switch (id) {
+                case MsgID::S2C_SNAPSHOT: {
+                    Snapshot snap = MsgCodec::decodeSnapshot(data, len);
+                    game.applySnapshot(snap);
+                    break;
+                }
+                case MsgID::S2C_HIT: {
+                    break;
+                }
+                case MsgID::S2C_SKILL_EFFECT: {
+                    break;
+                }
+                case MsgID::S2C_GAME_OVER: {
+                    break;
+                }
+                default:
+                    break;
+            }
+        });
 
         while (game.isRunning() && !game.isGameOver()) {
             game.update(0.016f);

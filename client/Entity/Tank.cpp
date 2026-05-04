@@ -123,6 +123,18 @@ void Tank::useSkill() {
     onSkillStart();
 }
 
+void Tank::setPosFromSnapshot(const TankState& ts) {
+    m_pos = ts.pos;
+    m_angle = ts.angle;
+    m_curHP = ts.curHP;
+    m_maxHP = ts.maxHP;
+    m_alive = ts.alive;
+    m_shieldActive = ts.shieldActive;
+    m_sprintActive = ts.sprintActive;
+    m_skillCooldown = ts.skillCooldown;
+    _updateDirection();
+}
+
 // ============ Heavy Tank ============
 HeavyTank::HeavyTank(int playerID, TankType type, Vec2 startPos)
     : Tank(playerID, type, startPos) {}
