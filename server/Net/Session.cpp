@@ -28,6 +28,13 @@ void RecvThread(Session *session)
         if (ret <= 0)
             break; // 连接断开则退出循环
 
+        // 缓冲区溢出检查，丢弃超出容量的数据并断开连接
+        if (session->recvLen + ret > BUFFER_SIZE)
+        {
+            cout << "[服务端] 缓冲区溢出，强制断开连接" << endl;
+            break;
+        }
+
         // 将收到的数据拷贝到会话缓冲区
         memcpy(session->recvBuf + session->recvLen, tempBuf, ret);
         session->recvLen += ret;
@@ -56,6 +63,8 @@ void RecvThread(Session *session)
     }
 
     // 客户端断开连接，清理资源缓存
+    if (session->onDisconnect)
+        session->onDisconnect();
     closesocket(session->sock); // 关闭socket
     cout << "[服务端] 客户端断开连接" << endl;
     delete session; // 释放Session对象
