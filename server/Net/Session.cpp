@@ -1,39 +1,33 @@
 #include "Session.h"
 #include "../Data/UserManager.h"
+#include "../Game/Room.h"
 #include <iostream>
 #include <cstring>
 
 using namespace std;
 
-Session::Session(SOCKET s) : sock(s), recvLen(0)
-{
+Session::Session(SOCKET s) : sock(s), recvLen(0) {
     memset(recvBuf, 0, BUFFER_SIZE);
+    lastHeartbeatUs = Clock::Now();
 }
 
-// 发送一条完整消息 = MsgHeader + body
-void Session::Send(MsgID id, const void* body, uint16_t bodyLen)
-{
+void Session::Send(MsgID id, const void* body, uint16_t bodyLen) {
     lock_guard<mutex> lock(sendMutex);
 
     MsgHeader header;
     header.id = id;
     header.bodyLen = bodyLen;
 
-    // 发送消息头
     int ret = send(sock, (const char*)&header, sizeof(header), 0);
     if (ret <= 0) return;
 
-    // 发送消息体（可能为空）
     if (body && bodyLen > 0)
         send(sock, (const char*)body, bodyLen, 0);
 }
 
-// ============ 消息处理 ============
+// ============ Message Handlers ============
 
-// 处理注册：C2S_REGISTER
-static void HandleRegister(Session* session, const char* body, int bodyLen)
-{
-    // 消息体格式：account\0password\0
+static void HandleRegister(Session* session, const char* body, int /*bodyLen*/) {
     string account(body);
     string pwd(body + account.size() + 1);
 
@@ -42,15 +36,11 @@ static void HandleRegister(Session* session, const char* body, int bodyLen)
     bool ok = Register(account, pwd);
     ErrorCode code = ok ? ErrorCode::NONE : ErrorCode::REGISTER_EXISTS;
 
-    // 回复注册结果
     session->Send(MsgID::S2C_REGISTER_ACK, &code, sizeof(code));
     cout << "[服务端] 注册" << (ok ? "成功" : "失败（账号已存在）") << endl;
 }
 
-// 处理登录：C2S_LOGIN
-static void HandleLogin(Session* session, const char* body, int bodyLen)
-{
-    // 消息体格式：account\0password\0
+static void HandleLogin(Session* session, const char* body, int /*bodyLen*/) {
     string account(body);
     string pwd(body + account.size() + 1);
 
@@ -59,22 +49,18 @@ static void HandleLogin(Session* session, const char* body, int bodyLen)
     bool ok = Login(account, pwd);
     ErrorCode code = ok ? ErrorCode::NONE : ErrorCode::LOGIN_FAILED;
 
-    if (ok)
-    {
+    if (ok) {
         session->userName = account;
         session->isLoggedIn = true;
     }
 
-    // 回复登录结果
     session->Send(MsgID::S2C_LOGIN_ACK, &code, sizeof(code));
     cout << "[服务端] 登录" << (ok ? "成功" : "失败") << endl;
 }
 
-// 消息分发器：根据 msgId 调用对应的处理函数
-void ProcessMsg(Session* session, MsgID msgId, const char* body, int bodyLen)
-{
-    switch (msgId)
-    {
+void ProcessMsg(Session* session, MsgID msgId, const char* body, int bodyLen) {
+    switch (msgId) {
+
     case MsgID::C2S_REGISTER:
         HandleRegister(session, body, bodyLen);
         break;
@@ -85,12 +71,55 @@ void ProcessMsg(Session* session, MsgID msgId, const char* body, int bodyLen)
 
     case MsgID::C2S_JOIN_ROOM:
         if (session->onJoinRoom)
-            session->onJoinRoom((int)session->sock);
+            session->onJoinRoom(session->playerID);
         break;
 
     case MsgID::C2S_LEAVE_ROOM:
         if (session->onLeaveRoom)
-            session->onLeaveRoom((int)session->sock);
+            session->onLeaveRoom(session->playerID);
+        break;
+
+    case MsgID::C2S_SELECT_TANK:
+        if (session->currentRoom && bodyLen >= (int)sizeof(SelectTankReq)) {
+            SelectTankReq req;
+            memcpy(&req, body, sizeof(req));
+            session->currentRoom->SelectTank(session->playerID, req.type);
+        }
+        break;
+
+    case MsgID::C2S_INPUT:
+        if (session->currentRoom && bodyLen >= (int)sizeof(InputState)) {
+            InputState input;
+            memcpy(&input, body, sizeof(InputState));
+            session->currentRoom->OnPlayerInput(session->playerID, input);
+        }
+        break;
+
+    case MsgID::C2S_SHOOT:
+        if (session->currentRoom)
+            session->currentRoom->OnPlayerShoot(session->playerID);
+        break;
+
+    case MsgID::C2S_USE_SKILL:
+        if (session->currentRoom)
+            session->currentRoom->OnPlayerSkill(session->playerID);
+        break;
+
+    case MsgID::C2S_HEARTBEAT:
+        session->lastHeartbeatUs = Clock::Now();
+        session->Send(MsgID::S2C_HEARTBEAT, nullptr, 0);
+        if (session->currentRoom)
+            session->currentRoom->OnHeartbeat(session->playerID);
+        break;
+
+    case MsgID::C2S_RECONNECT:
+        if (bodyLen >= (int)sizeof(ReconnectReq)) {
+            ReconnectReq req;
+            memcpy(&req, body, sizeof(req));
+            req.username[31] = '\0'; // ensure null-terminated
+            if (session->onTryReconnect)
+                session->onTryReconnect(session->playerID, string(req.username));
+        }
         break;
 
     default:
@@ -99,61 +128,57 @@ void ProcessMsg(Session* session, MsgID msgId, const char* body, int bodyLen)
     }
 }
 
-// ============ 接收线程 ============
+// ============ Recv Thread ============
 
-void RecvThread(Session* session)
-{
+void RecvThread(Session* session) {
     char tempBuf[BUFFER_SIZE];
 
-    while (true)
-    {
-        // 接收客户端数据
+    while (true) {
         int ret = recv(session->sock, tempBuf, BUFFER_SIZE, 0);
         if (ret <= 0)
-            break; // 连接断开
+            break;
 
-        // 缓冲区溢出检查
-        if (session->recvLen + ret > BUFFER_SIZE)
-        {
+        if (session->recvLen + ret > BUFFER_SIZE) {
             cout << "[服务端] 缓冲区溢出，强制断开连接" << endl;
             break;
         }
 
-        // 拷贝到会话缓冲区
         memcpy(session->recvBuf + session->recvLen, tempBuf, ret);
         session->recvLen += ret;
 
-        // 消息分包处理：循环解析完整消息
-        while (session->recvLen >= (int)sizeof(MsgHeader))
-        {
+        while (session->recvLen >= (int)sizeof(MsgHeader)) {
             MsgHeader header;
             memcpy(&header, session->recvBuf, sizeof(MsgHeader));
 
-            // 计算一条完整消息的总长度
             unsigned int totalLen = sizeof(MsgHeader) + header.bodyLen;
             if (session->recvLen < (int)totalLen)
-                break; // 数据不够，等待下一包
+                break;
 
-            // 一条完整消息已收到，分发处理
             ProcessMsg(session, header.id,
                        session->recvBuf + sizeof(MsgHeader),
                        header.bodyLen);
 
-            // 把缓冲区剩余数据前移
             session->recvLen -= (int)totalLen;
             memmove(session->recvBuf, session->recvBuf + totalLen, session->recvLen);
         }
     }
 
-    // 客户端断开，清理资源
+    // Notify room of disconnect via atomic flag
+    if (session->currentRoom) {
+        int slot = session->currentRoom->GetSlot(session->playerID);
+        if (slot >= 0) {
+            session->currentRoom->disconnectPending[slot] = true;
+        }
+    }
+
     if (session->onDisconnect)
         session->onDisconnect();
+
     closesocket(session->sock);
     cout << "[服务端] 客户端断开连接" << endl;
     delete session;
 }
 
-void Session::StartRecv()
-{
+void Session::StartRecv() {
     thread(RecvThread, this).detach();
 }

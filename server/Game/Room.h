@@ -1,22 +1,52 @@
 #pragma once
 
+#include <string>
+#include <functional>
+#include <atomic>
 #include "../../Common/Protocol.h"
+#include "../Core/Clock.h"
+#include "GameWorld.h"
 
-// 房间：2个位置，状态机 WAITING → READY → PLAYING
-class Room
-{
+class Room {
 public:
-    // 房间状态（与协议中 RoomState 枚举对应）
-    RoomState state = RoomState::WAITING;
+    RoomState   state = RoomState::WAITING;
 
-    // 两个玩家槽位，-1 表示空位
-    int playerIDs[2] = {-1, -1};
+    int         playerIDs[2]       = {-1, -1};
+    std::string playerNames[2]     = {"", ""};
+    TankType    selectedTanks[2];
+    bool        tankSelected[2]    = {false, false};
 
-    // 玩家加入房间，满员自动切 READY
-    bool Join(int playerID);
+    GameWorld   world;
 
-    // 玩家离开房间，切回 WAITING
+    int64_t     disconnectTimeUs[2] = {0, 0};
+    int64_t     lastHeartbeatUs[2]  = {0, 0};
+    std::atomic<bool> disconnectPending[2] = {false, false};
+
+    std::function<void(int playerID, MsgID, const void*, uint16_t)> sendToPlayer;
+
+    bool Join(int playerID, const std::string& username);
     void Leave(int playerID);
-
     bool IsFull() const;
+    bool IsPlaying() const;
+    int  GetSlot(int playerID) const;
+
+    bool SelectTank(int playerID, TankType type);
+    void StartGame();
+
+    void Tick(float dt);
+
+    void OnPlayerInput(int playerID, const InputState& input);
+    void OnPlayerShoot(int playerID);
+    void OnPlayerSkill(int playerID);
+    void OnHeartbeat(int playerID);
+
+    void HandleDisconnect(int playerID);
+    bool TryReconnect(const std::string& username, int newPlayerID);
+    void ForfeitPlayer(int playerID);
+
+private:
+    void BroadcastSnapshot();
+    void CheckDisconnectTimeout(float dt);
+    void EndGame(int winnerSlot, bool forfeit);
+    void SendToSlot(int slot, MsgID id, const void* body, uint16_t len);
 };

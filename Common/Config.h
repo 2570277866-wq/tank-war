@@ -49,6 +49,11 @@ namespace MapConfig {
     constexpr int HEIGHT = 800;
 }
 
+namespace CollisionConfig {
+    constexpr float TANK_RADIUS   = 20.0f;
+    constexpr float BULLET_RADIUS = 5.0f;
+}
+
 namespace NetConfig {
     constexpr int RECV_BUF_SIZE = 4096;
     constexpr int SEND_BUF_SIZE = 4096;
