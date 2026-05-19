@@ -1,4 +1,5 @@
 #include "GameWorld.h"
+#include "../Core/Logger.h"
 #include <algorithm>
 
 #ifndef M_PI
@@ -20,6 +21,14 @@ void GameWorld::Reset() {
     winnerID = -1;
     hitEventCount = 0;
     winByForfeit = false;
+    memset(obstacles, 0, sizeof(obstacles));
+    obstacleCount = 0;
+    kills[0] = kills[1] = 0;
+    inputCountThisTick[0] = inputCountThisTick[1] = 0;
+    shootSpamCount[0] = shootSpamCount[1] = 0;
+    skillSpamCount[0] = skillSpamCount[1] = 0;
+    lastValidPos[0] = {0, 0};
+    lastValidPos[1] = {0, 0};
     isInit = false;
 }
 
@@ -69,21 +78,28 @@ void GameWorld::Init(int p1ID, TankType t1, int p2ID, TankType t2) {
 
     skills[0] = {p1ID, SkillType::SHIELD, 0.0f};
     skills[1] = {p2ID, SkillType::SHIELD, 0.0f};
+    lastValidPos[0] = tanks[0].pos;
+    lastValidPos[1] = tanks[1].pos;
+
+    MapConfig::GetDefaultObstacles(obstacles, obstacleCount);
 }
 
 void GameWorld::SetInput(int slot, const InputState& input) {
     std::lock_guard<std::mutex> lock(inputMutex);
     pendingInput[slot] = input;
+    inputCountThisTick[slot]++;
 }
 
 void GameWorld::RequestShoot(int slot) {
     std::lock_guard<std::mutex> lock(inputMutex);
     shootRequested[slot] = true;
+    shootSpamCount[slot]++;
 }
 
 void GameWorld::RequestSkill(int slot) {
     std::lock_guard<std::mutex> lock(inputMutex);
     skillRequested[slot] = true;
+    skillSpamCount[slot]++;
 }
 
 void GameWorld::Tick(float dt) {
@@ -153,6 +169,7 @@ void GameWorld::Tick(float dt) {
 
     MoveBullets(dt);
     CheckBulletBounds();
+    CheckBulletObstacleCollisions();
 
     for (int i = 0; i < 2; ++i) {
         if (tanks[i].alive) {
@@ -171,6 +188,44 @@ void GameWorld::Tick(float dt) {
             winByForfeit = false;
             break;
         }
+    }
+
+    // 反作弊校验
+    for (int i = 0; i < 2; ++i) {
+        if (!tanks[i].alive) continue;
+        const auto& attr = GetAttrs(i);
+
+        // 速度上限检查：防止位置瞬移
+        float maxSpeed = attr.speed * (tanks[i].sprintActive ? 2.0f : 1.0f);
+        float maxDist = maxSpeed * dt + 1.0f; // 1.0f tolerance
+        float actualDist = std::sqrt(
+            (tanks[i].pos.x - lastValidPos[i].x) * (tanks[i].pos.x - lastValidPos[i].x) +
+            (tanks[i].pos.y - lastValidPos[i].y) * (tanks[i].pos.y - lastValidPos[i].y)
+        );
+        if (actualDist > maxDist) {
+            // 瞬移作弊，回退到上一合法位置
+            tanks[i].pos = lastValidPos[i];
+        }
+
+        // 输入频率异常告警
+        if (inputCountThisTick[i] > 2) {
+            Logger::Get().Cheat("Player " + std::to_string(tanks[i].playerID) +
+                                " sent " + std::to_string(inputCountThisTick[i]) +
+                                " inputs in one tick");
+        }
+
+        // 射击频率异常
+        if (shootSpamCount[i] > 2) {
+            Logger::Get().Cheat("Player " + std::to_string(tanks[i].playerID) +
+                                " attempted " + std::to_string(shootSpamCount[i]) +
+                                " shots in one tick");
+        }
+
+        // 保存合法位置
+        lastValidPos[i] = tanks[i].pos;
+        inputCountThisTick[i] = 0;
+        shootSpamCount[i] = 0;
+        skillSpamCount[i] = 0;
     }
 
     ++frameSeq;
@@ -197,6 +252,17 @@ void GameWorld::MoveTank(int slot, float dt) {
     }
 
     Judge::ClampToBounds(tanks[slot].pos, CollisionConfig::TANK_RADIUS);
+
+    // 障碍物碰撞检测与推离
+    for (int i = 0; i < obstacleCount; ++i) {
+        if (obstacles[i].destroyed) continue;
+        if (obstacles[i].type == ObstacleType::GRASS) continue;
+        if (Judge::CircleRect(tanks[slot].pos, CollisionConfig::TANK_RADIUS,
+                              obstacles[i].pos, obstacles[i].size)) {
+            Judge::PushCircleOutOfRect(tanks[slot].pos, CollisionConfig::TANK_RADIUS,
+                                       obstacles[i].pos, obstacles[i].size);
+        }
+    }
 }
 
 void GameWorld::SpawnBullet(int slot) {
@@ -277,7 +343,29 @@ void GameWorld::CheckBulletBounds() {
     }
 }
 
-void GameWorld::DeactivateExpiredSkills(float dt) {
+void GameWorld::CheckBulletObstacleCollisions() {
+    for (int i = bulletCount - 1; i >= 0; --i) {
+        for (int j = 0; j < obstacleCount; ++j) {
+            if (obstacles[j].destroyed) continue;
+            if (obstacles[j].type == ObstacleType::GRASS) continue;
+
+            if (Judge::CircleRect(bullets[i].pos, CollisionConfig::BULLET_RADIUS,
+                                  obstacles[j].pos, obstacles[j].size)) {
+                if (obstacles[j].type == ObstacleType::BRICK) {
+                    obstacles[j].curHP -= bullets[i].damage;
+                    if (obstacles[j].curHP <= 0) {
+                        obstacles[j].curHP = 0;
+                        obstacles[j].destroyed = true;
+                    }
+                }
+                RemoveBullet(i);
+                break; // bullet destroyed, skip remaining obstacles
+            }
+        }
+    }
+}
+
+void GameWorld::DeactivateExpiredSkills(float /*dt*/) {
     for (int i = 0; i < 2; ++i) {
         if (tanks[i].shieldActive && tanks[i].skillTimer <= 0.0f) {
             tanks[i].shieldActive = false;
@@ -307,6 +395,7 @@ void GameWorld::ApplyDamage(int victimSlot, int damage, int attackerSlot) {
 
     if (tanks[victimSlot].curHP <= 0) {
         tanks[victimSlot].alive = false;
+        kills[attackerSlot]++;
     }
 }
 
@@ -334,5 +423,9 @@ Snapshot GameWorld::PackSnapshot() const {
     }
     snap.skills[0] = skills[0];
     snap.skills[1] = skills[1];
+    snap.obstacleCount = obstacleCount;
+    for (int i = 0; i < obstacleCount && i < 64; ++i) {
+        snap.obstaclesDestroyed[i] = obstacles[i].destroyed;
+    }
     return snap;
 }

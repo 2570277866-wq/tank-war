@@ -20,6 +20,8 @@ public:
     BulletState      bullets[MAX_BULLETS];
     int              bulletCount = 0;
     SkillEffectState skills[2];
+    Obstacle         obstacles[MapConfig::MAX_OBSTACLES];
+    int              obstacleCount = 0;
     uint32_t         frameSeq = 0;
 
     InputState       pendingInput[2];
@@ -35,6 +37,11 @@ public:
     HitEvent         hitEvents[MAX_BULLETS];
     int              hitEventCount = 0;
     bool             winByForfeit = false;
+    int              kills[2] = {0, 0};
+    int              inputCountThisTick[2] = {0, 0};
+    int              shootSpamCount[2] = {0, 0};
+    int              skillSpamCount[2] = {0, 0};
+    Vec2             lastValidPos[2];
 
     void Reset();
     void Init(int p1ID, TankType t1, int p2ID, TankType t2);
@@ -54,6 +61,7 @@ private:
     void CheckBulletTankCollisions(int slot);
     void RemoveBullet(int index);
     void CheckBulletBounds();
+    void CheckBulletObstacleCollisions();
     void DeactivateExpiredSkills(float dt);
 
     Vec2 ForwardVec(int slot) const;
