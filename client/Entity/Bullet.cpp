@@ -1,5 +1,5 @@
 #include "Bullet.h"
-#include "../../Common/Config.h"
+#include "Config.h"
 
 Bullet::Bullet(Vec2 pos, Vec2 vel, int owner, int damage)
     : m_pos(pos), m_vel(vel), m_owner(owner), m_damage(damage) {}

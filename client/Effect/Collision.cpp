@@ -1,6 +1,6 @@
 // Collision.cpp
 #include "Collision.h"
-#include "../../Common/Config.h"
+#include "Config.h"
 #include <cmath>
 
 bool Collision::circleCircle(const Circle& a, const Circle& b) {

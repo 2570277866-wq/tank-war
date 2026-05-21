@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../Common/Protocol.h"
+#include "Protocol.h"
 #include <WinSock2.h>
 #include <string>
 #include <functional>

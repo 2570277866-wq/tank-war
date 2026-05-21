@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../Common/Protocol.h"
-#include "../../Common/Config.h"
+#include "Protocol.h"
+#include "Config.h"
 #include <graphics.h>
 #include <vector>
 

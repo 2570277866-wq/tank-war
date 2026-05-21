@@ -1,8 +1,8 @@
 // Tank.h
 #pragma once
 
-#include "../../Common/Protocol.h"
-#include "../../Common/Config.h"
+#include "Protocol.h"
+#include "Config.h"
 #include <cmath>
 
 class Bullet; // 前向声明

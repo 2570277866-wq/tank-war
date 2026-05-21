@@ -1,7 +1,7 @@
 // MenuUI.h
 #pragma once
 #include <graphics.h>
-#include "../../Common/Protocol.h"
+#include "Protocol.h"
 
 enum class MenuResult { START_GAME, EXIT };
 

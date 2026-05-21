@@ -1,8 +1,8 @@
 // Collision.h
 #pragma once
 
-#include "Tank.h"
-#include "Bullet.h"
+#include "Entity/Tank.h"
+#include "Entity/Bullet.h"
 #include <vector>
 
 struct Circle {

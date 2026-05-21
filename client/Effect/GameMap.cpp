@@ -1,5 +1,5 @@
 #include "GameMap.h"
-#include "../../Common/Config.h"
+#include "Config.h"
 #include <cmath>
 
 GameMap::GameMap() {

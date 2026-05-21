@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../Common/Protocol.h"
+#include "Protocol.h"
 #include <graphics.h>
 #include <vector>
 
