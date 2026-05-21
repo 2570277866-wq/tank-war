@@ -136,16 +136,6 @@ void GameLoop::applySnapshot(const Snapshot& snap) {
         Tank* tank = (ts.playerID == 0) ? m_localTank.get() : m_enemyTank.get();
         if (!tank) continue;
 
-        if (ts.playerID == m_localTank->getPlayerID()) {
-            float dx = ts.pos.x - tank->getPos().x;
-            float dy = ts.pos.y - tank->getPos().y;
-            if (dx * dx + dy * dy > 25.0f) {
-                Vec2 corrected = { ts.pos.x, ts.pos.y };
-            }
-        } else {
-            Vec2 newPos = { ts.pos.x, ts.pos.y };
-        }
-
         tank->setPosFromSnapshot(ts);
     }
 

@@ -17,4 +17,7 @@ public:
     void update(float dt);
     void draw();
     bool isActive() const;
+
+private:
+    std::vector<DeathAnim> m_anims;
 };
