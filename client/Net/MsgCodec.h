@@ -11,11 +11,6 @@ struct LoginBody {
     char password[32];
 };
 
-struct LoginAckBody {
-    bool success;
-    ErrorCode error;
-};
-
 inline void encodeLogin(const std::string& user, const std::string& pwd, char* out, uint16_t& outLen) {
     LoginBody body{};
     strncpy_s(body.username, user.c_str(), 31);
@@ -24,25 +19,17 @@ inline void encodeLogin(const std::string& user, const std::string& pwd, char* o
     memcpy(out, &body, outLen);
 }
 
-inline LoginAckBody decodeLoginAck(const char* data, uint16_t len) {
-    LoginAckBody body{};
-    if (len >= sizeof(LoginAckBody)) {
-        memcpy(&body, data, sizeof(LoginAckBody));
+inline ErrorCode decodeLoginAck(const char* data, uint16_t len) {
+    ErrorCode code = ErrorCode::LOGIN_FAILED;
+    if (len >= sizeof(ErrorCode)) {
+        memcpy(&code, data, sizeof(ErrorCode));
     }
-    return body;
+    return code;
 }
 
 inline void encodeInput(const InputState& input, char* out, uint16_t& outLen) {
     outLen = sizeof(InputState);
     memcpy(out, &input, outLen);
-}
-
-inline InputState decodeInput(const char* data, uint16_t len) {
-    InputState input{};
-    if (len >= sizeof(InputState)) {
-        memcpy(&input, data, sizeof(InputState));
-    }
-    return input;
 }
 
 inline Snapshot decodeSnapshot(const char* data, uint16_t len) {
@@ -87,6 +74,43 @@ inline void encodeJoinRoom(const std::string& user, TankType type, char* out, ui
     body.type = type;
     outLen = sizeof(JoinRoomBody);
     memcpy(out, &body, outLen);
+}
+
+inline void encodeSelectTank(TankType type, char* out, uint16_t& outLen) {
+    SelectTankReq req{ type };
+    outLen = sizeof(SelectTankReq);
+    memcpy(out, &req, outLen);
+}
+
+inline MatchResultData decodeMatchResult(const char* data, uint16_t len) {
+    MatchResultData match{};
+    if (len >= sizeof(MatchResultData)) {
+        memcpy(&match, data, sizeof(MatchResultData));
+    }
+    return match;
+}
+
+inline HitData decodeHitData(const char* data, uint16_t len) {
+    HitData hd{};
+    if (len >= sizeof(HitData)) {
+        memcpy(&hd, data, sizeof(HitData));
+    }
+    return hd;
+}
+
+inline GameOverData decodeGameOverData(const char* data, uint16_t len) {
+    GameOverData gd{};
+    if (len >= sizeof(GameOverData)) {
+        memcpy(&gd, data, sizeof(GameOverData));
+    }
+    return gd;
+}
+
+inline void encodeReconnect(const std::string& username, char* out, uint16_t& outLen) {
+    ReconnectReq req{};
+    strncpy_s(req.username, username.c_str(), 31);
+    outLen = sizeof(ReconnectReq);
+    memcpy(out, &req, outLen);
 }
 
 struct RankItem {

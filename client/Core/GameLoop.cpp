@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cmath>
 
-constexpr float TANK_RADIUS = 15.0f;
+constexpr float TANK_RADIUS = CollisionConfig::TANK_RADIUS;
 constexpr float PI = 3.14159265358979f;
 
 GameLoop::GameLoop() {}
@@ -87,7 +87,7 @@ void GameLoop::checkCollisions() {
     for (auto& bullet : m_bullets) {
         if (!bullet->isAlive()) continue;
 
-        if (m_map.checkBulletCollision(bullet->getPos(), 4.0f, bullet->getDamage())) {
+        if (m_map.checkBulletCollision(bullet->getPos(), CollisionConfig::BULLET_RADIUS, bullet->getDamage())) {
             m_particles.emitExplosion(bullet->getPos(), RGB(200, 150, 50), 6);
             bullet->destroy();
             continue;

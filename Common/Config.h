@@ -45,8 +45,13 @@ namespace TankConfig {
 }
 
 namespace MapConfig {
-    constexpr int WIDTH  = 800;
-    constexpr int HEIGHT = 600;
+    constexpr int WIDTH  = 1200;
+    constexpr int HEIGHT = 800;
+}
+
+namespace CollisionConfig {
+    constexpr float TANK_RADIUS   = 20.0f;
+    constexpr float BULLET_RADIUS = 5.0f;
 }
 
 namespace NetConfig {

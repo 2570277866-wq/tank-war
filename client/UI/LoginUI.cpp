@@ -63,12 +63,12 @@ LoginResult LoginUI::show(LoginInfo& outInfo) {
     int focus = 0;
     const int MAX_LEN = 20;
 
-    int boxX = 250, boxW = 300, boxH = 36;
+    int boxX = (MapConfig::WIDTH - 300) / 2, boxW = 300, boxH = 36;
     int userY = 200;
     int passY = 290;
 
     int btnW = 120, btnH = 42;
-    int loginX = 250, registerX = 430, btnY = 370;
+    int loginX = boxX, registerX = boxX + 180, btnY = 370;
 
     while (true) {
         MOUSEMSG m = {};

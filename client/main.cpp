@@ -6,7 +6,7 @@
 #include "Net/MsgCodec.h"
 
 int main() {
-    initgraph(800, 600, SHOWCONSOLE);
+    initgraph(MapConfig::WIDTH, MapConfig::HEIGHT, SHOWCONSOLE);
     setbkcolor(RGB(20, 20, 40));
     cleardevice();
     BeginBatchDraw();
@@ -59,13 +59,28 @@ int main() {
                     game.applySnapshot(snap);
                     break;
                 }
+                case MsgID::S2C_MATCH_RESULT: {
+                    MatchResultData match = MsgCodec::decodeMatchResult(data, len);
+                    break;
+                }
                 case MsgID::S2C_HIT: {
+                    HitData hd = MsgCodec::decodeHitData(data, len);
                     break;
                 }
                 case MsgID::S2C_SKILL_EFFECT: {
                     break;
                 }
                 case MsgID::S2C_GAME_OVER: {
+                    GameOverData gd = MsgCodec::decodeGameOverData(data, len);
+                    break;
+                }
+                case MsgID::S2C_ROOM_INFO: {
+                    break;
+                }
+                case MsgID::S2C_SELECT_TANK_ACK: {
+                    break;
+                }
+                case MsgID::S2C_RECONNECT_ACK: {
                     break;
                 }
                 default:

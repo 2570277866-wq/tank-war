@@ -22,7 +22,7 @@ void MenuUI::drawButton(int x, int y, int w, int h,
 
 // ===== 主菜单 =====
 MenuResult MenuUI::showMain() {
-    int W = 800, H = 600;
+    int W = MapConfig::WIDTH, H = MapConfig::HEIGHT;
     int btnW = 200, btnH = 50;
     int btnX = (W - btnW) / 2;
 
@@ -47,7 +47,7 @@ MenuResult MenuUI::showMain() {
         // 标题
         settextcolor(RGB(255, 220, 50));
         settextstyle(48, 0, L"黑体");
-        outtextxy(220, 120, L"双人联机坦克大战");
+        outtextxy(W / 2 - 120, 120, L"双人联机坦克大战");
 
         // 按钮
         bool hoverStart = isMouseOver(mx, my, btnX, 280, btnW, btnH);
@@ -73,7 +73,7 @@ MenuResult MenuUI::showMain() {
 
 // ===== 选坦克界面 =====
 SelectResult MenuUI::showTankSelect() {
-    int W = 800, H = 600;
+    int W = MapConfig::WIDTH, H = MapConfig::HEIGHT;
 
     struct TankOption {
         TankType type;

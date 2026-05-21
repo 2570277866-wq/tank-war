@@ -8,10 +8,14 @@ enum class MsgID : uint16_t {
     S2C_LOGIN_ACK    = 0x0102,
     S2C_REGISTER_ACK = 0x0103,
 
-    C2S_JOIN_ROOM    = 0x0200,
-    C2S_LEAVE_ROOM   = 0x0201,
-    S2C_ROOM_INFO    = 0x0202,
-    S2C_MATCH_RESULT = 0x0203,
+    C2S_JOIN_ROOM       = 0x0200,
+    C2S_LEAVE_ROOM      = 0x0201,
+    S2C_ROOM_INFO       = 0x0202,
+    S2C_MATCH_RESULT    = 0x0203,
+    C2S_SELECT_TANK     = 0x0204,
+    S2C_SELECT_TANK_ACK = 0x0205,
+    C2S_RECONNECT       = 0x0206,
+    S2C_RECONNECT_ACK   = 0x0207,
 
     C2S_INPUT        = 0x0300,
     S2C_SNAPSHOT     = 0x0301,
@@ -49,6 +53,7 @@ enum class RoomState : uint8_t {
     WAITING = 0,
     READY   = 1,
     PLAYING = 2,
+    PAUSED  = 3,
 };
 
 enum class SkillType : uint8_t {
@@ -69,6 +74,7 @@ struct TankState {
     bool     alive;
     bool     shieldActive;
     bool     sprintActive;
+    float    shootTimer;
 };
 
 struct BulletState {
@@ -98,6 +104,32 @@ struct InputState {
     bool f;
 };
 
+struct SelectTankReq {
+    TankType type;
+};
+
+struct MatchResultData {
+    int      playerIDs[2];
+    TankType tankTypes[2];
+    Vec2     startPositions[2];
+};
+
+struct HitData {
+    int victimID;
+    int damage;
+    int remainingHP;
+    int attackerID;
+};
+
+struct GameOverData {
+    int  winnerID;
+    bool forfeit;
+};
+
+struct ReconnectReq {
+    char username[32];
+};
+
 enum class ErrorCode : uint16_t {
     NONE             = 0x0000,
     LOGIN_FAILED     = 0x0001,
@@ -111,8 +143,7 @@ constexpr uint16_t SERVER_PORT    = 9527;
 constexpr int      TICK_RATE      = 20;
 constexpr int      TICK_INTERVAL  = 1000 / TICK_RATE;
 constexpr int      RENDER_FPS    = 60;
-constexpr int      MAX_BULLETS   = 64;
-constexpr int      HEARTBEAT_MS  = 3000;
-constexpr int      RECONNECT_MS  = 10000;
-
-
+constexpr int      MAX_BULLETS      = 64;
+constexpr float    SHOOT_COOLDOWN   = 0.5f;
+constexpr int      HEARTBEAT_MS     = 3000;
+constexpr int      RECONNECT_MS     = 10000;

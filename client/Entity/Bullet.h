@@ -26,5 +26,3 @@ private:
     int   m_damage;    // 伤害值
     bool  m_alive = true;
 };
-
-constexpr float BULLET_RADIUS = 4.0f;
