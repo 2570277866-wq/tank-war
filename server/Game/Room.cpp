@@ -33,6 +33,7 @@ void Room::Leave(int playerID) {
                 int other = 1 - i;
                 if (playerIDs[other] != -1) {
                     EndGame(other, true);
+                    return; // EndGame already resets room state
                 }
             }
             playerIDs[i] = -1;

@@ -263,6 +263,9 @@ void GameWorld::MoveTank(int slot, float dt) {
                                        obstacles[i].pos, obstacles[i].size);
         }
     }
+
+    // 障碍物推离后重新钳制边界
+    Judge::ClampToBounds(tanks[slot].pos, CollisionConfig::TANK_RADIUS);
 }
 
 void GameWorld::SpawnBullet(int slot) {
