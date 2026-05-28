@@ -1,6 +1,7 @@
 #include "TCPServer.h"
 #include "Session.h"
 #include "../Core/Clock.h"
+#include "../Core/Logger.h"
 #include <iostream>
 #include <chrono>
 #include <algorithm>
@@ -45,10 +46,7 @@ bool TCPServer::Init() {
         return false;
     }
 
-    cout << "=====================================" << endl;
-    cout << "          TCP 服务端已启动" << endl;
-    cout << "          监听端口：" << SERVER_PORT << endl;
-    cout << "=====================================" << endl;
+    Logger::Get().Info("TCP 服务端已启动，监听端口 " + std::to_string(SERVER_PORT));
 
     return true;
 }
@@ -57,7 +55,7 @@ void TCPServer::Start() {
     running = true;
     thread(&TCPServer::AcceptLoop, this).detach();
     tickThread = thread(&TCPServer::GameTickLoop, this);
-    cout << "[服务端] 游戏 tick 循环已启动（" << TICK_RATE << "Hz）" << endl;
+    Logger::Get().Info("游戏 tick 循环已启动（" + std::to_string(TICK_RATE) + "Hz）");
 }
 
 void TCPServer::Shutdown() {
@@ -84,7 +82,7 @@ void TCPServer::Shutdown() {
     }
 
     WSACleanup();
-    cout << "[服务端] 服务端已停止" << endl;
+    Logger::Get().Info("服务端已停止");
 }
 
 // ============ Session Registry ============
@@ -154,8 +152,8 @@ void TCPServer::HandleJoinRoom(int playerID, const std::string& username) {
     }
 
     if (ok) {
-        cout << "[服务端] 玩家 " << username << " 加入房间，状态="
-             << (int)room->state << "，人数=" << (room->IsFull() ? 2 : 1) << endl;
+        Logger::Get().Game("玩家 " + username + " 加入房间，人数=" +
+                          std::to_string(room->IsFull() ? 2 : 1));
         SendToPlayer(playerID, MsgID::S2C_ROOM_INFO, &room->state, sizeof(room->state));
     }
 }
@@ -169,7 +167,7 @@ void TCPServer::HandleLeaveRoom(int playerID) {
         }
     }
     RemoveFromRoom(playerID);
-    cout << "[服务端] 玩家 " << playerID << " 离开房间" << endl;
+    Logger::Get().Game("玩家 " + std::to_string(playerID) + " 离开房间");
 }
 
 bool TCPServer::HandleReconnect(int newPlayerID, const std::string& username, Session* session) {
@@ -193,7 +191,7 @@ bool TCPServer::HandleReconnect(int newPlayerID, const std::string& username, Se
 // ============ Accept Loop ============
 
 void TCPServer::AcceptLoop() {
-    cout << "[服务端] 等待客户端连接..." << endl;
+    Logger::Get().Info("等待客户端连接...");
 
     while (running) {
         fd_set fds;
@@ -209,7 +207,7 @@ void TCPServer::AcceptLoop() {
         if (client == INVALID_SOCKET)
             continue;
 
-        cout << "[服务端] 新客户端连接：socket=" << client << endl;
+        Logger::Get().Info("新客户端连接 socket=" + std::to_string(client));
 
         {
             lock_guard<mutex> lock(mtx);
@@ -222,9 +220,6 @@ void TCPServer::AcceptLoop() {
 
         session->onDisconnect = [this, client, session]() {
             RemoveClient(client);
-            if (session->currentRoom) {
-                HandleLeaveRoom(client);
-            }
             UnregisterSession(client);
         };
 
@@ -271,8 +266,7 @@ void TCPServer::GameTickLoop() {
                         if (pid == -1) continue;
                         if (room->disconnectPending[slot]) continue;
                         if (now - room->lastHeartbeatUs[slot] > HEARTBEAT_MS * 1000LL) {
-                            cout << "[服务端] 玩家 " << room->playerNames[slot]
-                                 << " 心跳超时" << endl;
+                            Logger::Get().Warn("玩家 " + room->playerNames[slot] + " 心跳超时");
                             room->disconnectPending[slot] = true;
                         }
                     }

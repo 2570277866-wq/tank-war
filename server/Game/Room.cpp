@@ -1,5 +1,9 @@
 #include "Room.h"
+#include "../Data/RecordManager.h"
+#include "../Data/UserManager.h"
+#include "../Core/Logger.h"
 #include <iostream>
+#include <ctime>
 
 using namespace std;
 
@@ -29,6 +33,7 @@ void Room::Leave(int playerID) {
                 int other = 1 - i;
                 if (playerIDs[other] != -1) {
                     EndGame(other, true);
+                    return; // EndGame already resets room state
                 }
             }
             playerIDs[i] = -1;
@@ -67,8 +72,8 @@ bool Room::SelectTank(int playerID, TankType type) {
     ErrorCode code = ErrorCode::NONE;
     SendToSlot(slot, MsgID::S2C_SELECT_TANK_ACK, &code, sizeof(code));
 
-    cout << "[房间] 玩家 " << playerNames[slot]
-         << " 选择坦克类型=" << (int)type << endl;
+    Logger::Get().Game("玩家 " + playerNames[slot] +
+                       " 选择坦克类型=" + std::to_string((int)type));
 
     // Both players have selected, start game
     if (tankSelected[0] && tankSelected[1]) {
@@ -81,6 +86,7 @@ void Room::StartGame() {
     world.Init(playerIDs[0], selectedTanks[0],
                playerIDs[1], selectedTanks[1]);
     state = RoomState::PLAYING;
+    gameStartUs = Clock::Now();
 
     for (int i = 0; i < 2; ++i) {
         lastHeartbeatUs[i] = Clock::Now();
@@ -98,7 +104,7 @@ void Room::StartGame() {
     SendToSlot(0, MsgID::S2C_MATCH_RESULT, &match, sizeof(match));
     SendToSlot(1, MsgID::S2C_MATCH_RESULT, &match, sizeof(match));
 
-    cout << "[房间] 游戏开始！" << playerNames[0] << " vs " << playerNames[1] << endl;
+    Logger::Get().Game("游戏开始！" + playerNames[0] + " vs " + playerNames[1]);
 }
 
 void Room::Tick(float dt) {
@@ -165,17 +171,36 @@ void Room::HandleDisconnect(int playerID) {
     int slot = GetSlot(playerID);
     if (slot < 0) return;
 
-    disconnectTimeUs[slot] = Clock::Now();
-    cout << "[房间] 玩家 " << playerNames[slot] << " 断开连接" << endl;
+    Logger::Get().Warn("玩家 " + playerNames[slot] +
+                       " 断开连接，房间状态=" + std::to_string((int)state));
+
+    if (state == RoomState::WAITING || state == RoomState::READY) {
+        playerIDs[slot] = -1;
+        playerNames[slot] = "";
+        tankSelected[slot] = false;
+        disconnectPending[slot] = false;
+        if (state == RoomState::READY) state = RoomState::WAITING;
+        Logger::Get().Game("玩家已从等待房间移除");
+        return;
+    }
 
     if (state == RoomState::PLAYING) {
+        disconnectTimeUs[slot] = Clock::Now();
+        disconnectPending[slot] = true; // re-set for timeout detection in CheckDisconnectTimeout
         state = RoomState::PAUSED;
-        cout << "[房间] 游戏暂停，等待重连..." << endl;
+        Logger::Get().Warn("游戏暂停，等待重连（" +
+                           std::to_string(RECONNECT_MS/1000) + "秒）...");
 
-        // Notify both players
         RoomState newState = RoomState::PAUSED;
         SendToSlot(0, MsgID::S2C_ROOM_INFO, &newState, sizeof(newState));
         SendToSlot(1, MsgID::S2C_ROOM_INFO, &newState, sizeof(newState));
+        return;
+    }
+
+    if (state == RoomState::PAUSED) {
+        disconnectTimeUs[slot] = Clock::Now();
+        disconnectPending[slot] = true;
+        Logger::Get().Warn("另一玩家也在暂停期间断开，等待重连...");
     }
 }
 
@@ -187,7 +212,7 @@ bool Room::TryReconnect(const std::string& username, int newPlayerID) {
             disconnectPending[i] = false;
             lastHeartbeatUs[i] = Clock::Now();
 
-            cout << "[房间] 玩家 " << username << " 重连成功" << endl;
+            Logger::Get().Game("玩家 " + username + " 重连成功");
 
             if (state == RoomState::PAUSED) {
                 state = RoomState::PLAYING;
@@ -222,12 +247,12 @@ void Room::ForfeitPlayer(int playerID) {
     int slot = GetSlot(playerID);
     if (slot < 0) return;
 
-    cout << "[房间] 玩家 " << playerNames[slot] << " 断线超时，判负" << endl;
+    Logger::Get().Game("玩家 " + playerNames[slot] + " 断线超时，判负");
     int other = 1 - slot;
     EndGame(other, true);
 }
 
-void Room::CheckDisconnectTimeout(float dt) {
+void Room::CheckDisconnectTimeout(float /*dt*/) {
     int64_t now = Clock::Now();
     for (int i = 0; i < 2; ++i) {
         if (disconnectPending[i]) {
@@ -241,6 +266,8 @@ void Room::CheckDisconnectTimeout(float dt) {
 }
 
 void Room::EndGame(int winnerSlot, bool forfeit) {
+    int loserSlot = 1 - winnerSlot;
+
     GameOverData data;
     data.winnerID = playerIDs[winnerSlot];
     data.forfeit  = forfeit;
@@ -248,8 +275,29 @@ void Room::EndGame(int winnerSlot, bool forfeit) {
     SendToSlot(0, MsgID::S2C_GAME_OVER, &data, sizeof(data));
     SendToSlot(1, MsgID::S2C_GAME_OVER, &data, sizeof(data));
 
-    cout << "[房间] 游戏结束！胜者=" << playerNames[winnerSlot]
-         << (forfeit ? " (断线判负)" : "") << endl;
+    // 计算对局时长
+    int durationSec = (int)((Clock::Now() - gameStartUs) / 1000000LL);
+
+    // 保存对局记录
+    GameRecord rec;
+    strncpy(rec.player1, playerNames[0].c_str(), 31);
+    rec.player1[31] = '\0';
+    strncpy(rec.player2, playerNames[1].c_str(), 31);
+    rec.player2[31] = '\0';
+    strncpy(rec.winner, playerNames[winnerSlot].c_str(), 31);
+    rec.winner[31] = '\0';
+    rec.durationSec = durationSec;
+    rec.kills[0] = world.kills[0];
+    rec.kills[1] = world.kills[1];
+    SaveGameRecord(rec);
+
+    // 更新玩家战绩
+    UpdateStats(playerNames[winnerSlot], 1, 0, world.kills[winnerSlot]);
+    UpdateStats(playerNames[loserSlot], 0, 1, world.kills[loserSlot]);
+
+    Logger::Get().Game("游戏结束！胜者=" + playerNames[winnerSlot] +
+                       "，时长=" + std::to_string(durationSec) + "秒" +
+                       (forfeit ? " (断线判负)" : ""));
 
     // Reset room
     playerIDs[0] = playerIDs[1] = -1;

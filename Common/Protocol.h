@@ -96,6 +96,8 @@ struct Snapshot {
     BulletState       bullets[64];
     int               bulletCount;
     SkillEffectState  skills[2];
+    bool              obstaclesDestroyed[64]; // 障碍物摧毁状态
+    int               obstacleCount;
 };
 
 struct InputState {
@@ -128,6 +130,26 @@ struct GameOverData {
 
 struct ReconnectReq {
     char username[32];
+};
+
+struct RankEntry {
+    char name[32];
+    int  wins;
+    int  losses;
+    int  kills;
+};
+
+struct RankListData {
+    int       count;
+    RankEntry entries[10];
+};
+
+struct GameRecord {
+    char player1[32];
+    char player2[32];
+    char winner[32];
+    int  durationSec;
+    int  kills[2];
 };
 
 enum class ErrorCode : uint16_t {
