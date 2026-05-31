@@ -1,5 +1,6 @@
 #pragma once
 
+#include <WinSock2.h>
 #include "Protocol.h"
 #include "Config.h"
 #include "Entity/Tank.h"
@@ -23,6 +24,7 @@ public:
     ~GameLoop();
 
     void init();
+    void initFromMatch(const MatchResultData& match, int localPlayerID);
     void start();
     void stop();
 
@@ -52,6 +54,7 @@ private:
     bool     m_running = false;
     bool     m_gameOver = false;
     TankType m_localTankType = TankType::LIGHT;
+    int      m_localPlayerID = -1;
 
     std::unique_ptr<Tank>  m_localTank;
     std::unique_ptr<Tank>  m_enemyTank;

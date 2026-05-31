@@ -132,6 +132,11 @@ struct ReconnectReq {
     char username[32];
 };
 
+struct JoinRoomReq {
+    char     username[32];
+    TankType tankType;
+};
+
 struct RankEntry {
     char name[32];
     int  wins;

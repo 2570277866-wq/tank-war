@@ -1,5 +1,4 @@
 #include "GameMap.h"
-#include "Config.h"
 #include <cmath>
 
 GameMap::GameMap() {

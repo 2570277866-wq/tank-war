@@ -38,9 +38,9 @@ void GameOverUI::show(const GameOverInfo& info) {
         FlushBatchDraw();
 
         MOUSEMSG m = {};
-        bool hasMsg = mousemsg();
+        bool hasMsg = MouseHit();
         int mx = 0, my = 0;
-        if (hasMsg) { m = getmousemsg(); mx = m.x; my = m.y; }
+        if (hasMsg) { m = GetMouseMsg(); mx = m.x; my = m.y; }
 
         if (hasMsg && m.uMsg == WM_LBUTTONDOWN) {
             if (mx >= 300 && mx <= 500 && my >= 400 && my <= 445) return;

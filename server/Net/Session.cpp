@@ -72,8 +72,19 @@ void ProcessMsg(Session* session, MsgID msgId, const char* body, int bodyLen) {
         break;
 
     case MsgID::C2S_JOIN_ROOM:
+        if (!session->isLoggedIn) {
+            ErrorCode code = ErrorCode::LOGIN_FAILED;
+            session->Send(MsgID::S2C_ERROR, &code, sizeof(code));
+            break;
+        }
         if (session->onJoinRoom)
             session->onJoinRoom(session->playerID);
+        // 自动读取坦克类型并选择
+        if (session->currentRoom && bodyLen >= (int)sizeof(JoinRoomReq)) {
+            JoinRoomReq req;
+            memcpy(&req, body, sizeof(req));
+            session->currentRoom->SelectTank(session->playerID, req.tankType);
+        }
         break;
 
     case MsgID::C2S_LEAVE_ROOM:

@@ -13,7 +13,7 @@ bool Collision::circleCircle(const Circle& a, const Circle& b) {
 
 bool Collision::bulletHitsTank(const Bullet& bullet, const Tank& tank) {
     if (!bullet.isAlive() || !tank.isAlive()) return false;
-    Circle bulletCircle = { bullet.getPos(), BULLET_RADIUS };
+    Circle bulletCircle = { bullet.getPos(), CollisionConfig::BULLET_RADIUS };
     Circle tankCircle   = { tank.getPos(), CollisionConfig::TANK_RADIUS }; // TANK_RADIUS
     return circleCircle(bulletCircle, tankCircle);
 }

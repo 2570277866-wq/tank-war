@@ -28,12 +28,12 @@ MenuResult MenuUI::showMain() {
 
     while (true) {
         MOUSEMSG m = {};
-        bool hasMsg = mousemsg();
+        bool hasMsg = MouseHit();
 
         // 获取鼠标位置
         int mx = 0, my = 0;
         if (hasMsg) {
-            m = getmousemsg();
+            m = GetMouseMsg();
             mx = m.x; my = m.y;
         }
 
@@ -92,9 +92,9 @@ SelectResult MenuUI::showTankSelect() {
 
     while (true) {
         MOUSEMSG m = {};
-        bool hasMsg = mousemsg();
+        bool hasMsg = MouseHit();
         int mx = 0, my = 0;
-        if (hasMsg) { m = getmousemsg(); mx = m.x; my = m.y; }
+        if (hasMsg) { m = GetMouseMsg(); mx = m.x; my = m.y; }
 
         cleardevice();
         setbkcolor(RGB(20, 20, 40));

@@ -1,7 +1,7 @@
 #include "WaitUI.h"
 #include <Windows.h>
 
-WaitResult WaitUI::show(const wchar_t* statusText) {
+WaitResult WaitUI::show(const wchar_t* statusText, const std::atomic<bool>* matched) {
     int dotCount = 0;
     DWORD lastTick = GetTickCount();
 
@@ -39,15 +39,17 @@ WaitResult WaitUI::show(const wchar_t* statusText) {
         outtextxy(355, 432, L"取消匹配");
 
         MOUSEMSG m = {};
-        bool hasMsg = mousemsg();
+        bool hasMsg = MouseHit();
         int mx = 0, my = 0;
-        if (hasMsg) { m = getmousemsg(); mx = m.x; my = m.y; }
+        if (hasMsg) { m = GetMouseMsg(); mx = m.x; my = m.y; }
 
         if (hasMsg && m.uMsg == WM_LBUTTONDOWN) {
             if (mx >= 300 && mx <= 500 && my >= 420 && my <= 460) {
                 return WaitResult::CANCEL;
             }
         }
+
+        if (matched && *matched) return WaitResult::MATCHED;
 
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
             return WaitResult::CANCEL;

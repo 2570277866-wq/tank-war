@@ -26,7 +26,7 @@ bool NetClient::connect(const char* ip, uint16_t port) {
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    inet_pton(AF_INET, ip, &addr.sin_addr);
+    addr.sin_addr.s_addr = inet_addr(ip);
 
     if (::connect(m_sock, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
         std::cerr << "[NetClient] connect failed" << std::endl;

@@ -92,17 +92,18 @@ void Room::StartGame() {
         lastHeartbeatUs[i] = Clock::Now();
     }
 
-    // Send match result to both players
-    MatchResultData match;
-    match.playerIDs[0] = playerIDs[0];
-    match.playerIDs[1] = playerIDs[1];
-    match.tankTypes[0] = selectedTanks[0];
-    match.tankTypes[1] = selectedTanks[1];
-    match.startPositions[0] = world.tanks[0].pos;
-    match.startPositions[1] = world.tanks[1].pos;
-
-    SendToSlot(0, MsgID::S2C_MATCH_RESULT, &match, sizeof(match));
-    SendToSlot(1, MsgID::S2C_MATCH_RESULT, &match, sizeof(match));
+    // 每个玩家收到的数据：index 0 = 自己, index 1 = 对手
+    for (int slot = 0; slot < 2; ++slot) {
+        int other = 1 - slot;
+        MatchResultData match;
+        match.playerIDs[0]      = playerIDs[slot];
+        match.playerIDs[1]      = playerIDs[other];
+        match.tankTypes[0]      = selectedTanks[slot];
+        match.tankTypes[1]      = selectedTanks[other];
+        match.startPositions[0] = world.tanks[slot].pos;
+        match.startPositions[1] = world.tanks[other].pos;
+        SendToSlot(slot, MsgID::S2C_MATCH_RESULT, &match, sizeof(match));
+    }
 
     Logger::Get().Game("游戏开始！" + playerNames[0] + " vs " + playerNames[1]);
 }
@@ -198,6 +199,7 @@ void Room::HandleDisconnect(int playerID) {
     }
 
     if (state == RoomState::PAUSED) {
+        if (disconnectPending[slot]) return; // already handling this slot
         disconnectTimeUs[slot] = Clock::Now();
         disconnectPending[slot] = true;
         Logger::Get().Warn("另一玩家也在暂停期间断开，等待重连...");
