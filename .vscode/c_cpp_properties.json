@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "compilerPath": "C:/msys64/ucrt64/bin/g++.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-gcc-x64",
+            "includePath": [
+                "${workspaceFolder}/client",
+                "${workspaceFolder}/Common",
+                "C:/msys64/ucrt64/include/c++/15.1.0",
+                "C:/msys64/ucrt64/x86_64-w64-mingw32/include",
+                "C:/msys64/ucrt64/include"
+            ],
+            "defines": [
+                "_CRT_SECURE_NO_WARNINGS"
+            ]
+        }
+    ],
+    "version": 4
+}
