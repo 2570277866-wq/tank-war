@@ -72,9 +72,9 @@ LoginResult LoginUI::show(LoginInfo& outInfo) {
 
     while (true) {
         MOUSEMSG m = {};
-        bool hasMsg = mousemsg();
+        bool hasMsg = MouseHit();
         int mx = 0, my = 0;
-        if (hasMsg) { m = getmousemsg(); mx = m.x; my = m.y; }
+        if (hasMsg) { m = GetMouseMsg(); mx = m.x; my = m.y; }
 
         cleardevice();
         setbkcolor(RGB(20, 20, 40));

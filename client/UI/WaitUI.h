@@ -1,6 +1,7 @@
 #pragma once
 
 #include <graphics.h>
+#include <atomic>
 
 enum class WaitResult {
     MATCHED,
@@ -9,5 +10,5 @@ enum class WaitResult {
 
 class WaitUI {
 public:
-    static WaitResult show(const wchar_t* statusText = L"等待对手加入...");
+    static WaitResult show(const wchar_t* statusText, const std::atomic<bool>* matched = nullptr);
 };

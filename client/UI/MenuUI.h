@@ -2,6 +2,7 @@
 #pragma once
 #include <graphics.h>
 #include "Protocol.h"
+#include "Config.h"
 
 enum class MenuResult { START_GAME, EXIT };
 

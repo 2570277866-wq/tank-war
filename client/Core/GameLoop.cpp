@@ -1,6 +1,7 @@
 #include "GameLoop.h"
 #include <iostream>
 #include <cmath>
+#include <algorithm>
 
 constexpr float TANK_RADIUS = CollisionConfig::TANK_RADIUS;
 constexpr float PI = 3.14159265358979f;
@@ -12,11 +13,23 @@ GameLoop::~GameLoop() {
 }
 
 void GameLoop::init() {
-    Vec2 playerStart = { 150.0f, (float)MapConfig::HEIGHT / 2 };
-    m_localTank.reset(Tank::create(0, m_localTankType, playerStart));
+    m_bullets.clear();
+    m_gameOver = false;
+    m_running = false;
+    m_prevSpace = false;
+    m_prevF = false;
+}
 
-    Vec2 enemyStart = { (float)MapConfig::WIDTH - 150.0f, (float)MapConfig::HEIGHT / 2 };
-    m_enemyTank.reset(Tank::create(1, TankType::HEAVY, enemyStart));
+void GameLoop::initFromMatch(const MatchResultData& match, int localPlayerID) {
+    m_localPlayerID = localPlayerID;
+
+    int localSlot  = (match.playerIDs[0] == localPlayerID) ? 0 : 1;
+    int enemySlot  = 1 - localSlot;
+    int enemyID    = match.playerIDs[enemySlot];
+    TankType enemyType = match.tankTypes[enemySlot];
+
+    m_localTank.reset(Tank::create(localPlayerID, m_localTankType, match.startPositions[localSlot]));
+    m_enemyTank.reset(Tank::create(enemyID, enemyType, match.startPositions[enemySlot]));
 
     m_bullets.clear();
     m_gameOver = false;
@@ -133,7 +146,7 @@ void GameLoop::applySnapshot(const Snapshot& snap) {
 
     for (int i = 0; i < 2; i++) {
         const TankState& ts = snap.tanks[i];
-        Tank* tank = (ts.playerID == 0) ? m_localTank.get() : m_enemyTank.get();
+        Tank* tank = (ts.playerID == m_localPlayerID) ? m_localTank.get() : m_enemyTank.get();
         if (!tank) continue;
 
         tank->setPosFromSnapshot(ts);
@@ -247,7 +260,7 @@ void GameLoop::drawBullets() {
         if (!bullet->isAlive()) continue;
         int bx = (int)bullet->getPos().x;
         int by = (int)bullet->getPos().y;
-        COLORREF color = (bullet->getOwner() == 0) ? RGB(255, 255, 100) : RGB(255, 100, 100);
+        COLORREF color = (bullet->getOwner() == m_localPlayerID) ? RGB(255, 255, 100) : RGB(255, 100, 100);
         setfillcolor(color);
         fillcircle(bx, by, 4);
     }

@@ -20,6 +20,7 @@ public:
 
     int64_t     disconnectTimeUs[2] = {0, 0};
     int64_t     lastHeartbeatUs[2]  = {0, 0};
+    int64_t     gameStartUs = 0;
     std::atomic<bool> disconnectPending[2] = {false, false};
 
     std::function<void(int playerID, MsgID, const void*, uint16_t)> sendToPlayer;

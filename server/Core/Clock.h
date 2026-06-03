@@ -6,8 +6,12 @@
 class Clock {
 public:
     static int64_t Now() {
-        LARGE_INTEGER freq, counter;
-        QueryPerformanceFrequency(&freq);
+        static LARGE_INTEGER freq = []() {
+            LARGE_INTEGER f;
+            QueryPerformanceFrequency(&f);
+            return f;
+        }();
+        LARGE_INTEGER counter;
         QueryPerformanceCounter(&counter);
         return (counter.QuadPart * 1000000LL) / freq.QuadPart;
     }

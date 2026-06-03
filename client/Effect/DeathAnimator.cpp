@@ -1,5 +1,6 @@
 #include "DeathAnimator.h"
 #include <cmath>
+#include <algorithm>
 
 void DeathAnimator::trigger(Vec2 pos) {
     DeathAnim anim;

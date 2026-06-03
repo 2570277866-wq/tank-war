@@ -1,6 +1,7 @@
 #pragma once
 
 #include <graphics.h>
+#include "Config.h"
 #include <string>
 
 enum class LoginResult {
