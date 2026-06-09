@@ -1,4 +1,6 @@
 # Build
+build/
+build-mingw/
 *.exe
 *.o
 *.obj
@@ -22,10 +24,8 @@ x86/
 .DS_Store
 Thumbs.db
 
-# Data files (runtime generated)
-Server/Data/users.dat
-Server/Data/records.dat
-
-# Server runtime files
-server/server.log
-server/users.dat
+# Server runtime files (data & logs)
+server.log
+server/*.log
+server/*.dat
+server_ip.cfg

@@ -3,7 +3,6 @@
 #include <algorithm>
 
 // ============ 常量 ============
-constexpr float TANK_RADIUS = 15.0f;
 constexpr float PI = 3.14159265358979f;
 
 // ============ Tank 基类 ============
@@ -51,13 +50,13 @@ void Tank::_updateDirection() {
     m_dir.y = std::sin(m_angle);
 }
 
-void Tank::applyInput(const InputState& input) {
+void Tank::applyInput(const InputState& input, float dt) {
     if (!m_alive) return;
 
     // ===== 转向（WASD左右）=====
     float rotSpd = getRotateSpeed();
-    if (input.a) m_angle -= rotSpd * 0.016f; // 假设 60fps, dt≈16ms
-    if (input.d) m_angle += rotSpd * 0.016f;
+    if (input.a) m_angle -= rotSpd * dt;
+    if (input.d) m_angle += rotSpd * dt;
     _updateDirection();
 
     // ===== 移动（WASD前后）=====
@@ -75,12 +74,13 @@ void Tank::applyInput(const InputState& input) {
         moveDir.y /= len;
     }
 
-    m_pos.x += moveDir.x * spd;
-    m_pos.y += moveDir.y * spd;
+    m_pos.x += moveDir.x * spd * dt;
+    m_pos.y += moveDir.y * spd * dt;
 
     // ===== 边界限制 ======
-    m_pos.x = std::max(TANK_RADIUS, std::min((float)MapConfig::WIDTH  - TANK_RADIUS, m_pos.x));
-    m_pos.y = std::max(TANK_RADIUS, std::min((float)MapConfig::HEIGHT - TANK_RADIUS, m_pos.y));
+    constexpr float TANK_R = CollisionConfig::TANK_RADIUS;
+    m_pos.x = std::max(TANK_R, std::min((float)MapConfig::WIDTH  - TANK_R, m_pos.x));
+    m_pos.y = std::max(TANK_R, std::min((float)MapConfig::HEIGHT - TANK_R, m_pos.y));
 }
 
 void Tank::update(float dt) {

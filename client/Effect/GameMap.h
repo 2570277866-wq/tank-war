@@ -5,18 +5,13 @@
 #include <graphics.h>
 #include <vector>
 
-enum class WallType : uint8_t {
-    BRICK  = 0,
-    STEEL  = 1,
-    GRASS  = 2,
-    WATER  = 3,
-};
-
-struct Wall {
-    int      x, y;
-    int      w, h;
-    WallType type;
-    int      hp;
+struct ServerObstacle {
+    Vec2         pos;
+    Vec2         size;   // 半宽半高（与服务器一致）
+    ObstacleType type;
+    int          curHP;
+    int          maxHP;
+    bool         destroyed;
 };
 
 class GameMap {
@@ -26,14 +21,16 @@ public:
     void draw();
     void drawGrassOverlay();
 
-    bool checkTankCollision(Vec2 pos, float radius, Vec2& outCorrected);
     bool checkBulletCollision(Vec2 pos, float radius, int damage);
 
-    const std::vector<Wall>& getWalls() const { return m_walls; }
+    // 坦克碰撞：与服务器完全相同的算法
+    bool checkTankCollision(Vec2& pos, float radius);
+    void clampToBounds(Vec2& pos, float radius);
+
+    const std::vector<ServerObstacle>& getObstacles() const { return m_obstacles; }
+
+    void applyObstacleDestroyed(int count, const bool* destroyed);
 
 private:
-    std::vector<Wall> m_walls;
-
-    bool rectCircleCollision(int rx, int ry, int rw, int rh,
-                             Vec2 center, float radius);
+    std::vector<ServerObstacle> m_obstacles;
 };

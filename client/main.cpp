@@ -7,6 +7,9 @@
 #include "Net/NetClient.h"
 #include "Net/MsgCodec.h"
 #include <atomic>
+#include <chrono>
+#include <fstream>
+#include <string>
 
 int main() {
     initgraph(MapConfig::WIDTH, MapConfig::HEIGHT, SHOWCONSOLE);
@@ -21,15 +24,38 @@ int main() {
         if (mr == MenuResult::EXIT) break;
 
         LoginInfo loginInfo;
+
+        // 读取上次使用的服务器地址
+        {
+            std::ifstream f("server_ip.cfg");
+            if (f.is_open()) {
+                std::string savedIP;
+                std::getline(f, savedIP);
+                if (!savedIP.empty()) {
+                    loginInfo.serverIP.assign(savedIP.begin(), savedIP.end());
+                }
+            }
+        }
+
         LoginResult lr = LoginUI::show(loginInfo);
         if (lr == LoginResult::BACK) continue;
+
+        // 保存本次使用的服务器地址
+        {
+            std::ofstream f("server_ip.cfg", std::ios::trunc);
+            std::string ip(loginInfo.serverIP.begin(), loginInfo.serverIP.end());
+            f << ip;
+        }
 
         SelectResult sr = MenuUI::showTankSelect();
         if (!sr.confirmed) continue;
 
-        // 连接服务端
-        if (!netClient.connect("127.0.0.1", SERVER_PORT))
-            continue;
+        // 连接服务端（使用登录界面填写的服务器地址）
+        {
+            std::string ip(loginInfo.serverIP.begin(), loginInfo.serverIP.end());
+            if (!netClient.connect(ip.c_str(), SERVER_PORT))
+                continue;
+        }
 
         // 发送登录或注册
         {
@@ -91,7 +117,8 @@ int main() {
             }
         });
 
-        WaitResult wr = WaitUI::show(L"等待对手加入...", &matched);
+        WaitResult wr = WaitUI::show("等待对手加入...", &matched,
+            [&] { netClient.poll(); });
         if (wr == WaitResult::CANCEL || !matched) {
             netClient.sendMsg(MsgID::C2S_LEAVE_ROOM);
             netClient.disconnect();
@@ -112,8 +139,11 @@ int main() {
                     game.applySnapshot(snap);
                     break;
                 }
-                case MsgID::S2C_HIT:
+                case MsgID::S2C_HIT: {
+                    HitData hit = MsgCodec::decodeHitData(data, len);
+                    game.onHitReceived(hit);
                     break;
+                }
                 case MsgID::S2C_GAME_OVER:
                     break;
                 default:
@@ -121,11 +151,25 @@ int main() {
             }
         });
 
+        auto prevTime = std::chrono::high_resolution_clock::now();
         while (game.isRunning() && !game.isGameOver()) {
-            game.update(0.016f);
+            auto now = std::chrono::high_resolution_clock::now();
+            float dt = std::chrono::duration<float>(now - prevTime).count();
+            prevTime = now;
+
+            // 防止帧间隔过大导致物理穿墙
+            if (dt > 0.05f) dt = 0.05f;
+            if (dt <= 0.0f) dt = 0.001f;
+
+            game.update(dt);
             game.draw();
             netClient.poll();
-            Sleep(16);
+
+            // 动态休眠，维持约 60fps
+            auto after = std::chrono::high_resolution_clock::now();
+            float elapsed = std::chrono::duration<float>(after - now).count();
+            int sleepMs = (int)((16.667f - elapsed * 1000.0f));
+            if (sleepMs > 0 && sleepMs <= 30) Sleep(sleepMs);
         }
 
         game.draw();

@@ -30,7 +30,7 @@ public:
 
     std::mutex sendMutex;
     std::function<void()> onDisconnect;
-    std::function<void(int playerID)> onJoinRoom;
+    std::function<void(int playerID, TankType tankType)> onJoinRoom;
     std::function<void(int playerID)> onLeaveRoom;
     std::function<bool(int playerID, const std::string& username)> onTryReconnect;
 

@@ -37,10 +37,10 @@ inline bool CircleRect(Vec2 circlePos, float radius,
     float halfW = rectHalfSize.x;
     float halfH = rectHalfSize.y;
 
-    float closestX = std::max(rectPos.x - halfW,
-                     std::min(circlePos.x, rectPos.x + halfW));
-    float closestY = std::max(rectPos.y - halfH,
-                     std::min(circlePos.y, rectPos.y + halfH));
+    float closestX = (std::max)(rectPos.x - halfW,
+                          (std::min)(circlePos.x, rectPos.x + halfW));
+    float closestY = (std::max)(rectPos.y - halfH,
+                          (std::min)(circlePos.y, rectPos.y + halfH));
 
     float dx = circlePos.x - closestX;
     float dy = circlePos.y - closestY;
@@ -53,10 +53,10 @@ inline void PushCircleOutOfRect(Vec2& circlePos, float radius,
     float halfW = rectHalfSize.x;
     float halfH = rectHalfSize.y;
 
-    float closestX = std::max(rectPos.x - halfW,
-                     std::min(circlePos.x, rectPos.x + halfW));
-    float closestY = std::max(rectPos.y - halfH,
-                     std::min(circlePos.y, rectPos.y + halfH));
+    float closestX = (std::max)(rectPos.x - halfW,
+                          (std::min)(circlePos.x, rectPos.x + halfW));
+    float closestY = (std::max)(rectPos.y - halfH,
+                          (std::min)(circlePos.y, rectPos.y + halfH));
 
     float dx = circlePos.x - closestX;
     float dy = circlePos.y - closestY;

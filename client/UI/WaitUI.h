@@ -2,6 +2,7 @@
 
 #include <graphics.h>
 #include <atomic>
+#include <functional>
 
 enum class WaitResult {
     MATCHED,
@@ -10,5 +11,7 @@ enum class WaitResult {
 
 class WaitUI {
 public:
-    static WaitResult show(const wchar_t* statusText, const std::atomic<bool>* matched = nullptr);
+    static WaitResult show(const char* statusText,
+                           const std::atomic<bool>* matched = nullptr,
+                           std::function<void()> pollFn = nullptr);
 };

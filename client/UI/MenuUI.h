@@ -17,6 +17,6 @@ public:
     static SelectResult showTankSelect(); // 选坦克界面
 private:
     static void drawButton(int x, int y, int w, int h,
-                           const wchar_t* text, bool hovered);
+                           const char* text, bool hovered);
     static bool isMouseOver(int mx, int my, int x, int y, int w, int h);
 };

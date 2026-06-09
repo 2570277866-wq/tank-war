@@ -8,13 +8,13 @@ bool MenuUI::isMouseOver(int mx, int my, int x, int y, int w, int h) {
 }
 
 void MenuUI::drawButton(int x, int y, int w, int h,
-                        const wchar_t* text, bool hovered) {
+                        const char* text, bool hovered) {
     setfillcolor(hovered ? RGB(80,80,200) : RGB(50,50,150));
     setlinecolor(RGB(200,200,255));
     fillroundrect(x, y, x+w, y+h, 10, 10);
 
     settextcolor(WHITE);
-    settextstyle(24, 0, L"黑体");
+    settextstyle(24, 0, "黑体");
     int tw = textwidth(text);
     int th = textheight(text);
     outtextxy(x + (w-tw)/2, y + (h-th)/2, text);
@@ -46,14 +46,14 @@ MenuResult MenuUI::showMain() {
 
         // 标题
         settextcolor(RGB(255, 220, 50));
-        settextstyle(48, 0, L"黑体");
-        outtextxy(W / 2 - 120, 120, L"双人联机坦克大战");
+        settextstyle(48, 0, "黑体");
+        outtextxy(W / 2 - 120, 120, "双人联机坦克大战");
 
         // 按钮
         bool hoverStart = isMouseOver(mx, my, btnX, 280, btnW, btnH);
         bool hoverExit  = isMouseOver(mx, my, btnX, 370, btnW, btnH);
-        drawButton(btnX, 280, btnW, btnH, L"开始游戏", hoverStart);
-        drawButton(btnX, 370, btnW, btnH, L"退  出",   hoverExit);
+        drawButton(btnX, 280, btnW, btnH, "开始游戏", hoverStart);
+        drawButton(btnX, 370, btnW, btnH, "退  出",   hoverExit);
 
         FlushBatchDraw();
 
@@ -77,15 +77,15 @@ SelectResult MenuUI::showTankSelect() {
 
     struct TankOption {
         TankType type;
-        const wchar_t* name;
-        const wchar_t* desc;
+        const char* name;
+        const char* desc;
         COLORREF color;
     };
 
     TankOption opts[3] = {
-        { TankType::HEAVY, L"重型坦克", L"HP:200  速度:慢  伤害:大\n技能:铁壁护盾(3s免伤)", RGB(200,100,50) },
-        { TankType::LIGHT, L"轻型坦克", L"HP:150  速度:中  伤害:中\n技能:涡轮冲刺(2s双倍速)", RGB(50,180,50) },
-        { TankType::SCOUT, L"侦察坦克", L"HP:100  速度:快  伤害:小\n技能:弹幕散射(3颗扇形弹)", RGB(50,150,220) },
+        { TankType::HEAVY, "重型坦克", "HP:200  速度:慢  伤害:大\n技能:铁壁护盾(3s免伤)", RGB(200,100,50) },
+        { TankType::LIGHT, "轻型坦克", "HP:150  速度:中  伤害:中\n技能:涡轮冲刺(2s双倍速)", RGB(50,180,50) },
+        { TankType::SCOUT, "侦察坦克", "HP:100  速度:快  伤害:小\n技能:弹幕散射(3颗扇形弹)", RGB(50,150,220) },
     };
 
     int selected = 1; // 默认选轻型
@@ -102,8 +102,8 @@ SelectResult MenuUI::showTankSelect() {
 
         // 标题
         settextcolor(RGB(255,220,50));
-        settextstyle(32, 0, L"黑体");
-        outtextxy(270, 40, L"选择你的坦克");
+        settextstyle(32, 0, "黑体");
+        outtextxy(270, 40, "选择你的坦克");
 
         // 三个坦克卡片
         for (int i = 0; i < 3; i++) {
@@ -127,13 +127,13 @@ SelectResult MenuUI::showTankSelect() {
 
             // 名字
             settextcolor(opts[i].color);
-            settextstyle(22, 0, L"黑体");
+            settextstyle(22, 0, "黑体");
             int tw = textwidth(opts[i].name);
             outtextxy(cx + (cw-tw)/2, cy+115, opts[i].name);
 
             // 描述
             settextcolor(RGB(200,200,200));
-            settextstyle(16, 0, L"宋体");
+            settextstyle(16, 0, "宋体");
             outtextxy(cx+10, cy+150, opts[i].desc);
 
             if (hover && hasMsg && m.uMsg == WM_LBUTTONDOWN)
@@ -142,12 +142,12 @@ SelectResult MenuUI::showTankSelect() {
 
         // 确认按钮
         bool hoverOK = isMouseOver(mx, my, 300, 470, 200, 50);
-        drawButton(300, 470, 200, 50, L"确认选择", hoverOK);
+        drawButton(300, 470, 200, 50, "确认选择", hoverOK);
 
         // 提示
         settextcolor(RGB(150,150,150));
-        settextstyle(16, 0, L"宋体");
-        outtextxy(280, 540, L"ESC 返回主菜单");
+        settextstyle(16, 0, "宋体");
+        outtextxy(280, 540, "ESC 返回主菜单");
 
         FlushBatchDraw();
 

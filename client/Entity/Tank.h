@@ -14,7 +14,7 @@ public:
 
     // ============ 核心更新 ============
     void update(float dt);
-    void applyInput(const InputState& input);
+    void applyInput(const InputState& input, float dt);
 
     // ============ 状态查询 ============
     Vec2         getPos()     const { return m_pos; }
@@ -35,6 +35,16 @@ public:
     bool canShoot() const;       // 技能CD好了才能射
     float getShootTimer() const { return m_shootTimer; }
     void resetShootTimer() { m_shootTimer = 0.3f; } // 射击间隔 0.3s
+
+    // ============ 用于客户端预测/插值的细粒度 setter ============
+    void setPos(Vec2 p) { m_pos = p; }
+    void setAngle(float a) { m_angle = a; _updateDirection(); }
+    void setCurHP(int hp) { m_curHP = hp; }
+    void setMaxHP(int hp) { m_maxHP = hp; }
+    void setAlive(bool a) { m_alive = a; }
+    void setShieldActive(bool a) { m_shieldActive = a; }
+    void setSprintActive(bool a) { m_sprintActive = a; }
+    void setSkillCooldown(float cd) { m_skillCooldown = cd; }
 
     // ============ 工厂方法 ============
     static Tank* create(int playerID, TankType type, Vec2 startPos);

@@ -12,7 +12,7 @@ TCPServer::~TCPServer() {
     Shutdown();
 }
 
-bool TCPServer::Init() {
+bool TCPServer::Init(uint16_t port) {
     WSADATA wsaData;
     int err = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (err != 0) {
@@ -29,11 +29,11 @@ bool TCPServer::Init() {
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(SERVER_PORT);
+    addr.sin_port = htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(listenSocket, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
-        cerr << "[服务端] 绑定端口 " << SERVER_PORT << " 失败，错误码：" << WSAGetLastError() << endl;
+    if (::bind(listenSocket, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
+        cerr << "[服务端] 绑定端口 " << port << " 失败，错误码：" << WSAGetLastError() << endl;
         closesocket(listenSocket);
         WSACleanup();
         return false;
@@ -46,7 +46,7 @@ bool TCPServer::Init() {
         return false;
     }
 
-    Logger::Get().Info("TCP 服务端已启动，监听端口 " + std::to_string(SERVER_PORT));
+    Logger::Get().Info("TCP 服务端已启动，监听端口 " + std::to_string(port));
 
     return true;
 }
@@ -132,8 +132,21 @@ void TCPServer::RemoveFromRoom(int playerID) {
         room->Leave(playerID);
 }
 
-void TCPServer::HandleJoinRoom(int playerID, const std::string& username) {
-    Room* room = FindOrCreateRoom();
+void TCPServer::HandleJoinRoom(int playerID, const std::string& username,
+                                TankType tankType) {
+    // 在整个 Join+SelectTank 期间持有 roomMutex，
+    // 防止与 GameTickLoop 或其他玩家的 RecvThread 产生竞态
+    lock_guard<mutex> lock(roomMutex);
+
+    // 内联 FindOrCreateRoom（已持有锁）
+    Room* room = nullptr;
+    for (auto* r : rooms) {
+        if (!r->IsFull()) { room = r; break; }
+    }
+    if (!room) {
+        rooms.push_back(new Room());
+        room = rooms.back();
+    }
 
     if (!room->sendToPlayer) {
         room->sendToPlayer = [this](int pid, MsgID id, const void* body, uint16_t len) {
@@ -144,7 +157,7 @@ void TCPServer::HandleJoinRoom(int playerID, const std::string& username) {
     bool ok = room->Join(playerID, username);
 
     {
-        lock_guard<mutex> lock(sessionMapMutex);
+        lock_guard<mutex> lock2(sessionMapMutex);
         auto it = sessionMap.find(playerID);
         if (it != sessionMap.end()) {
             it->second->currentRoom = room;
@@ -155,6 +168,9 @@ void TCPServer::HandleJoinRoom(int playerID, const std::string& username) {
         Logger::Get().Game("玩家 " + username + " 加入房间，人数=" +
                           std::to_string(room->IsFull() ? 2 : 1));
         SendToPlayer(playerID, MsgID::S2C_ROOM_INFO, &room->state, sizeof(room->state));
+
+        // 在同一个 roomMutex 保护下原子完成坦克选择
+        room->SelectTank(playerID, tankType);
     }
 }
 
@@ -223,8 +239,8 @@ void TCPServer::AcceptLoop() {
             UnregisterSession(client);
         };
 
-        session->onJoinRoom = [this, session](int pid) {
-            HandleJoinRoom(pid, session->userName);
+        session->onJoinRoom = [this, session](int pid, TankType type) {
+            HandleJoinRoom(pid, session->userName, type);
         };
 
         session->onLeaveRoom = [this](int pid) {
@@ -265,6 +281,8 @@ void TCPServer::GameTickLoop() {
                         int pid = room->playerIDs[slot];
                         if (pid == -1) continue;
                         if (room->disconnectPending[slot]) continue;
+                        // 已标记断线等待重连中，跳过心跳检测避免重复触发
+                        if (room->disconnectTimeUs[slot] > 0) continue;
                         if (now - room->lastHeartbeatUs[slot] > HEARTBEAT_MS * 1000LL) {
                             Logger::Get().Warn("玩家 " + room->playerNames[slot] + " 心跳超时");
                             room->disconnectPending[slot] = true;

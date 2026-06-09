@@ -17,6 +17,9 @@ public:
 
     void snap(const InterpState& state);
 
+    // 动态调整插值时间（配合实际快照间隔，避免固定 50ms 导致的突跳）
+    void setInterpTime(float t) { m_interpTime = t; }
+
 private:
     InterpState m_prev;
     InterpState m_target;

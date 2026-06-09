@@ -11,8 +11,9 @@ enum class LoginResult {
 };
 
 struct LoginInfo {
-    std::wstring username;
-    std::wstring password;
+    std::string username;
+    std::string password;
+    std::string serverIP;
 };
 
 class LoginUI {
@@ -21,10 +22,10 @@ public:
 
 private:
     static void drawInputBox(int x, int y, int w, int h,
-                             const wchar_t* label,
-                             const std::wstring& text,
+                             const char* label,
+                             const std::string& text,
                              bool focused, bool isPassword);
     static void drawButton(int x, int y, int w, int h,
-                           const wchar_t* text, bool hovered);
+                           const char* text, bool hovered);
     static bool isMouseOver(int mx, int my, int x, int y, int w, int h);
 };

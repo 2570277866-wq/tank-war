@@ -6,8 +6,8 @@ Bullet::Bullet(Vec2 pos, Vec2 vel, int owner, int damage)
 
 void Bullet::update(float dt) {
     if (!m_alive) return;
-    m_pos.x += m_vel.x;
-    m_pos.y += m_vel.y;
+    m_pos.x += m_vel.x * dt;
+    m_pos.y += m_vel.y * dt;
 
     if (m_pos.x < 0 || m_pos.x > MapConfig::WIDTH ||
         m_pos.y < 0 || m_pos.y > MapConfig::HEIGHT) {

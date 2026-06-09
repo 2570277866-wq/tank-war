@@ -8,6 +8,8 @@
 using namespace std;
 
 bool Room::Join(int playerID, const std::string& username) {
+    // 防止同一玩家重复加入
+    if (playerIDs[0] == playerID || playerIDs[1] == playerID) return false;
     if (IsFull()) return false;
 
     for (int i = 0; i < 2; ++i) {
@@ -40,6 +42,7 @@ void Room::Leave(int playerID) {
             playerNames[i] = "";
             tankSelected[i] = false;
             disconnectPending[i] = false;
+            disconnectTimeUs[i] = 0;
             state = RoomState::WAITING;
             return;
         }
@@ -180,6 +183,7 @@ void Room::HandleDisconnect(int playerID) {
         playerNames[slot] = "";
         tankSelected[slot] = false;
         disconnectPending[slot] = false;
+        disconnectTimeUs[slot] = 0;
         if (state == RoomState::READY) state = RoomState::WAITING;
         Logger::Get().Game("玩家已从等待房间移除");
         return;
@@ -187,7 +191,7 @@ void Room::HandleDisconnect(int playerID) {
 
     if (state == RoomState::PLAYING) {
         disconnectTimeUs[slot] = Clock::Now();
-        disconnectPending[slot] = true; // re-set for timeout detection in CheckDisconnectTimeout
+        lastHeartbeatUs[slot] = Clock::Now();  // 防止心跳检测重复触发
         state = RoomState::PAUSED;
         Logger::Get().Warn("游戏暂停，等待重连（" +
                            std::to_string(RECONNECT_MS/1000) + "秒）...");
@@ -199,19 +203,17 @@ void Room::HandleDisconnect(int playerID) {
     }
 
     if (state == RoomState::PAUSED) {
-        if (disconnectPending[slot]) return; // already handling this slot
+        if (disconnectTimeUs[slot] > 0) return; // already handling this slot
         disconnectTimeUs[slot] = Clock::Now();
-        disconnectPending[slot] = true;
         Logger::Get().Warn("另一玩家也在暂停期间断开，等待重连...");
     }
 }
 
 bool Room::TryReconnect(const std::string& username, int newPlayerID) {
     for (int i = 0; i < 2; ++i) {
-        if (playerNames[i] == username && disconnectPending[i]) {
+        if (playerNames[i] == username && disconnectTimeUs[i] > 0) {
             playerIDs[i] = newPlayerID;
             disconnectTimeUs[i] = 0;
-            disconnectPending[i] = false;
             lastHeartbeatUs[i] = Clock::Now();
 
             Logger::Get().Game("玩家 " + username + " 重连成功");
@@ -257,7 +259,7 @@ void Room::ForfeitPlayer(int playerID) {
 void Room::CheckDisconnectTimeout(float /*dt*/) {
     int64_t now = Clock::Now();
     for (int i = 0; i < 2; ++i) {
-        if (disconnectPending[i]) {
+        if (disconnectTimeUs[i] > 0) {
             int64_t elapsedUs = now - disconnectTimeUs[i];
             if (elapsedUs > RECONNECT_MS * 1000LL) {
                 ForfeitPlayer(playerIDs[i]);
@@ -306,6 +308,7 @@ void Room::EndGame(int winnerSlot, bool forfeit) {
     playerNames[0] = playerNames[1] = "";
     tankSelected[0] = tankSelected[1] = false;
     disconnectPending[0] = disconnectPending[1] = false;
+    disconnectTimeUs[0] = disconnectTimeUs[1] = 0;
     state = RoomState::WAITING;
     world.Reset();
 }

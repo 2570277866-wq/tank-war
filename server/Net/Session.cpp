@@ -20,18 +20,43 @@ void Session::Send(MsgID id, const void* body, uint16_t bodyLen) {
     header.id = id;
     header.bodyLen = bodyLen;
 
-    int ret = send(sock, (const char*)&header, sizeof(header), 0);
-    if (ret <= 0) return;
+    // 发送头部（循环确保全部发送，TCP 可能部分发送）
+    const char* ptr = (const char*)&header;
+    int remaining = (int)sizeof(header);
+    while (remaining > 0) {
+        int ret = send(sock, ptr, remaining, 0);
+        if (ret <= 0) return;
+        ptr += ret;
+        remaining -= ret;
+    }
 
-    if (body && bodyLen > 0)
-        send(sock, (const char*)body, bodyLen, 0);
+    // 发送消息体
+    if (body && bodyLen > 0) {
+        ptr = (const char*)body;
+        remaining = (int)bodyLen;
+        while (remaining > 0) {
+            int ret = send(sock, ptr, remaining, 0);
+            if (ret <= 0) return;
+            ptr += ret;
+            remaining -= ret;
+        }
+    }
 }
 
 // ============ Message Handlers ============
 
-static void HandleRegister(Session* session, const char* body, int /*bodyLen*/) {
-    string account(body);
-    string pwd(body + account.size() + 1);
+// LoginBody 结构：char username[32] + char password[32] = 64 字节
+// password 字段从偏移 32 处开始，不能简单用 body + strlen(account) + 1
+struct LoginBodyRaw {
+    char username[32];
+    char password[32];
+};
+
+static void HandleRegister(Session* session, const char* body, int bodyLen) {
+    if (bodyLen < (int)sizeof(LoginBodyRaw)) return;
+    const auto* login = reinterpret_cast<const LoginBodyRaw*>(body);
+    string account(login->username);
+    string pwd(login->password);
 
     Logger::Get().Info("注册请求：账号=" + account);
 
@@ -42,9 +67,11 @@ static void HandleRegister(Session* session, const char* body, int /*bodyLen*/) 
     Logger::Get().Info(std::string("注册") + (ok ? "成功" : "失败（账号已存在）"));
 }
 
-static void HandleLogin(Session* session, const char* body, int /*bodyLen*/) {
-    string account(body);
-    string pwd(body + account.size() + 1);
+static void HandleLogin(Session* session, const char* body, int bodyLen) {
+    if (bodyLen < (int)sizeof(LoginBodyRaw)) return;
+    const auto* login = reinterpret_cast<const LoginBodyRaw*>(body);
+    string account(login->username);
+    string pwd(login->password);
 
     Logger::Get().Info("登录请求：账号=" + account);
 
@@ -77,13 +104,12 @@ void ProcessMsg(Session* session, MsgID msgId, const char* body, int bodyLen) {
             session->Send(MsgID::S2C_ERROR, &code, sizeof(code));
             break;
         }
-        if (session->onJoinRoom)
-            session->onJoinRoom(session->playerID);
-        // 自动读取坦克类型并选择
-        if (session->currentRoom && bodyLen >= (int)sizeof(JoinRoomReq)) {
+        // 解析 JoinRoomReq，将坦克类型传给 onJoinRoom，
+        // 让 HandleJoinRoom 在 roomMutex 保护下原子完成 Join+SelectTank
+        if (bodyLen >= (int)sizeof(JoinRoomReq) && session->onJoinRoom) {
             JoinRoomReq req;
             memcpy(&req, body, sizeof(req));
-            session->currentRoom->SelectTank(session->playerID, req.tankType);
+            session->onJoinRoom(session->playerID, req.tankType);
         }
         break;
 

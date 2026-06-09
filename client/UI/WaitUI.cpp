@@ -1,7 +1,8 @@
 #include "WaitUI.h"
 #include <Windows.h>
 
-WaitResult WaitUI::show(const wchar_t* statusText, const std::atomic<bool>* matched) {
+WaitResult WaitUI::show(const char* statusText, const std::atomic<bool>* matched,
+                         std::function<void()> pollFn) {
     int dotCount = 0;
     DWORD lastTick = GetTickCount();
 
@@ -17,17 +18,17 @@ WaitResult WaitUI::show(const wchar_t* statusText, const std::atomic<bool>* matc
         cleardevice();
 
         settextcolor(RGB(255, 220, 50));
-        settextstyle(32, 0, L"黑体");
-        outtextxy(280, 200, L"匹配中");
+        settextstyle(32, 0, "黑体");
+        outtextxy(280, 200, "匹配中");
 
-        wchar_t dots[5] = {};
-        for (int i = 0; i < dotCount; i++) dots[i] = L'.';
+        char dots[5] = {};
+        for (int i = 0; i < dotCount; i++) dots[i] = '.';
         settextcolor(RGB(200, 200, 200));
-        settextstyle(24, 0, L"黑体");
+        settextstyle(24, 0, "黑体");
         outtextxy(310, 270, dots);
 
         settextcolor(RGB(150, 150, 200));
-        settextstyle(18, 0, L"宋体");
+        settextstyle(18, 0, "宋体");
         outtextxy(250, 340, statusText);
 
         setfillcolor(RGB(60, 60, 60));
@@ -35,8 +36,8 @@ WaitResult WaitUI::show(const wchar_t* statusText, const std::atomic<bool>* matc
         setlinestyle(PS_SOLID, 1);
         fillroundrect(300, 420, 500, 460, 8, 8);
         settextcolor(RGB(200, 200, 200));
-        settextstyle(18, 0, L"黑体");
-        outtextxy(355, 432, L"取消匹配");
+        settextstyle(18, 0, "黑体");
+        outtextxy(355, 432, "取消匹配");
 
         MOUSEMSG m = {};
         bool hasMsg = MouseHit();
@@ -49,6 +50,7 @@ WaitResult WaitUI::show(const wchar_t* statusText, const std::atomic<bool>* matc
             }
         }
 
+        if (pollFn) pollFn();
         if (matched && *matched) return WaitResult::MATCHED;
 
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {

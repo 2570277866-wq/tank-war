@@ -207,15 +207,15 @@ void GameWorld::Tick(float dt) {
             tanks[i].pos = lastValidPos[i];
         }
 
-        // 输入频率异常告警
-        if (inputCountThisTick[i] > 2) {
+        // 输入频率异常告警（正常客户端 30-60fps 发送 ~1.5-3 条/tick）
+        if (inputCountThisTick[i] > 5) {
             Logger::Get().Cheat("Player " + std::to_string(tanks[i].playerID) +
                                 " sent " + std::to_string(inputCountThisTick[i]) +
                                 " inputs in one tick");
         }
 
         // 射击频率异常
-        if (shootSpamCount[i] > 2) {
+        if (shootSpamCount[i] > 3) {
             Logger::Get().Cheat("Player " + std::to_string(tanks[i].playerID) +
                                 " attempted " + std::to_string(shootSpamCount[i]) +
                                 " shots in one tick");
@@ -264,8 +264,31 @@ void GameWorld::MoveTank(int slot, float dt) {
         }
     }
 
+    // 坦克-坦克碰撞：防止两辆坦克重叠（画面表现为坐标错位）
+    int other = 1 - slot;
+    if (tanks[other].alive) {
+        float dx = tanks[slot].pos.x - tanks[other].pos.x;
+        float dy = tanks[slot].pos.y - tanks[other].pos.y;
+        float dist = std::sqrt(dx * dx + dy * dy);
+        float minDist = CollisionConfig::TANK_RADIUS * 2.0f;
+        if (dist < minDist && dist > 0.0001f) {
+            float overlap = minDist - dist;
+            // 各推一半，避免单次过度分离
+            float pushX = (dx / dist) * overlap * 0.5f;
+            float pushY = (dy / dist) * overlap * 0.5f;
+            tanks[slot].pos.x += pushX;
+            tanks[slot].pos.y += pushY;
+            tanks[other].pos.x -= pushX;
+            tanks[other].pos.y -= pushY;
+        }
+    }
+
     // 障碍物推离后重新钳制边界
     Judge::ClampToBounds(tanks[slot].pos, CollisionConfig::TANK_RADIUS);
+    // 对方坦克也可能被推出边界，同样钳制
+    if (tanks[other].alive) {
+        Judge::ClampToBounds(tanks[other].pos, CollisionConfig::TANK_RADIUS);
+    }
 }
 
 void GameWorld::SpawnBullet(int slot) {

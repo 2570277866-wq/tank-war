@@ -1,4 +1,5 @@
 #include "ParticleSystem.h"
+#include <cstdio>
 #include <algorithm>
 
 void ParticleSystem::emitExplosion(Vec2 pos, COLORREF color, int count) {
@@ -89,9 +90,9 @@ void ParticleSystem::draw() {
         int g = (GetGValue(dt2.color) * alpha);
         int b = (GetBValue(dt2.color) * alpha);
         settextcolor(RGB(r, g, b));
-        settextstyle(16, 0, L"黑体");
-        wchar_t text[16];
-        swprintf_s(text, L"-%d", dt2.damage);
+        settextstyle(16, 0, "黑体");
+        char text[16];
+        snprintf(text, sizeof(text), "-%d", dt2.damage);
         outtextxy((int)dt2.pos.x, (int)dt2.pos.y, text);
     }
 }

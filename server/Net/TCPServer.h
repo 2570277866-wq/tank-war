@@ -36,7 +36,7 @@ private:
 public:
     ~TCPServer();
 
-    bool Init();
+    bool Init(uint16_t port = SERVER_PORT);
     void Start();
     void Shutdown();
 
@@ -48,7 +48,8 @@ public:
 
     Room* FindOrCreateRoom();
     void RemoveFromRoom(int playerID);
-    void HandleJoinRoom(int playerID, const std::string& username);
+    void HandleJoinRoom(int playerID, const std::string& username,
+                        TankType tankType);
     void HandleLeaveRoom(int playerID);
     bool HandleReconnect(int newPlayerID, const std::string& username, Session* session);
 };
