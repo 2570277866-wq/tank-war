@@ -3,6 +3,11 @@
 #include <graphics.h>
 #include <string>
 
+enum class GameOverResult {
+    PLAY_AGAIN,
+    MAIN_MENU
+};
+
 struct GameOverInfo {
     bool   playerWin;
     int    playerKills;
@@ -12,5 +17,5 @@ struct GameOverInfo {
 
 class GameOverUI {
 public:
-    static void show(const GameOverInfo& info);
+    static GameOverResult show(const GameOverInfo& info);
 };

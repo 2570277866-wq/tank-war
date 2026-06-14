@@ -16,6 +16,7 @@ WaitResult WaitUI::show(const char* statusText, const std::atomic<bool>* matched
         cleardevice();
         setbkcolor(RGB(20, 20, 40));
         cleardevice();
+        setfillstyle(BS_SOLID);  // 确保填充样式正常
 
         settextcolor(RGB(255, 220, 50));
         settextstyle(32, 0, "黑体");

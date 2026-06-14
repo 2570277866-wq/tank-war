@@ -10,13 +10,20 @@ GameLoop::~GameLoop() { stop(); }
 
 void GameLoop::init() {
     m_bullets.clear();
+    m_particles.clear();
+    m_deathAnim = DeathAnimator{};  // 重置死亡动画
     m_gameOver = false;
     m_running = false;
     m_prevSpace = m_prevF = false;
     m_firstSnapDone = false;
     m_lastSnapSeq = 0;
-    m_predictionError = {0.0f, 0.0f};
     m_timeSinceLastSnap = 0.0f;
+    m_totalDamage = 0;
+    m_kills = 0;
+    m_gameTime = 0.0f;
+    m_prevLocalSkillTimer = m_prevEnemySkillTimer = 0.0f;
+    m_prevLocalShield = m_prevEnemyShield = false;
+    m_prevLocalSprint = m_prevEnemySprint = false;
 }
 
 void GameLoop::initFromMatch(const MatchResultData& match, int localPlayerID) {
@@ -50,11 +57,19 @@ void GameLoop::initFromMatch(const MatchResultData& match, int localPlayerID) {
     m_enemyTank->setAngle(enemyAngle);
 
     m_bullets.clear();
+    m_particles.clear();
+    m_deathAnim = DeathAnimator{};
     m_gameOver = false;
     m_running = false;
     m_prevSpace = m_prevF = false;
     m_firstSnapDone = false;
     m_lastSnapSeq = 0;
+    m_totalDamage = 0;
+    m_kills = 0;
+    m_gameTime = 0.0f;
+    m_prevLocalSkillTimer = m_prevEnemySkillTimer = 0.0f;
+    m_prevLocalShield = m_prevEnemyShield = false;
+    m_prevLocalSprint = m_prevEnemySprint = false;
 }
 
 void GameLoop::start() {
@@ -79,17 +94,20 @@ void GameLoop::update(float dt) {
     if (m_firstSnapDone) {
         if (m_localTank) {
             InterpState s = m_localInterp.getCurrent();
+            // 插值后的位置也做碰撞检测，防止快照间线性插值穿过障碍物
+            m_map.checkTankCollision(s.pos, CollisionConfig::TANK_RADIUS);
             m_localTank->setPos(s.pos);
             m_localTank->setAngle(s.angle);
         }
         if (m_enemyTank) {
             InterpState s = m_enemyInterp.getCurrent();
+            m_map.checkTankCollision(s.pos, CollisionConfig::TANK_RADIUS);
             m_enemyTank->setPos(s.pos);
             m_enemyTank->setAngle(s.angle);
         }
     }
 
-    // 本地角度预测（不影响位置，只是让转向手感更即时）
+    // 本地角度预测：转向立即响应，不影响位置同步
     if (m_localTank) {
         float r = m_localTank->getType() == TankType::HEAVY ? TankConfig::HEAVY.rotateSpeed :
                  m_localTank->getType() == TankType::LIGHT ? TankConfig::LIGHT.rotateSpeed :
@@ -98,42 +116,9 @@ void GameLoop::update(float dt) {
         if (input.d) m_localTank->setAngle(m_localTank->getAngle() + r * dt);
     }
 
-    // 本地位置预测：基于输入立即移动，消除服务端往返延迟感
-    // 配合 applySnapshot 中的误差记录，平滑校正累积偏移
-    if (m_localTank && m_firstSnapDone && m_localTank->isAlive()) {
-        float spd = m_localTank->getSpeed();
-        if (m_localTank->isSprintActive()) spd *= 2.0f;
-
-        float a = m_localTank->getAngle();
-        Vec2 moveDir = {0.0f, 0.0f};
-        if (input.w) { moveDir.x += std::cos(a); moveDir.y += std::sin(a); }
-        if (input.s) { moveDir.x -= std::cos(a); moveDir.y -= std::sin(a); }
-
-        float len = std::sqrt(moveDir.x * moveDir.x + moveDir.y * moveDir.y);
-        if (len > 0.001f) { moveDir.x /= len; moveDir.y /= len; }
-
-        // 预测误差指数衰减（~125ms 校正周期）
-        float errorDecay = 8.0f * dt;
-        if (errorDecay > 1.0f) errorDecay = 1.0f;
-        Vec2 correction = {
-            m_predictionError.x * errorDecay,
-            m_predictionError.y * errorDecay,
-        };
-        m_predictionError.x -= correction.x;
-        m_predictionError.y -= correction.y;
-
-        Vec2 predicted = {
-            m_localTank->getPos().x + moveDir.x * spd * dt + correction.x,
-            m_localTank->getPos().y + moveDir.y * spd * dt + correction.y,
-        };
-
-        // 边界钳制（与服务器 MoveTank 中 ClampToBounds 一致）
-        constexpr float TR = CollisionConfig::TANK_RADIUS;
-        predicted.x = std::max(TR, std::min((float)MapConfig::WIDTH - TR, predicted.x));
-        predicted.y = std::max(TR, std::min((float)MapConfig::HEIGHT - TR, predicted.y));
-
-        m_localTank->setPos(predicted);
-    }
+    // 注意：不做客户端位置预测。
+    // 所有坦克位置完全由服务器快照 + 插值器驱动，
+    // 保证双方玩家看到的坦克-障碍物相对位置完全一致。
 
     // 计时器更新
     if (m_localTank) m_localTank->update(dt);
@@ -152,6 +137,21 @@ void GameLoop::update(float dt) {
     if (spacePressed) fireBullet();
     if (fPressed && m_localTank) {
         m_localTank->useSkill();
+        // 技能激活本地粒子预览（避免等服务端快照的延迟）
+        SkillType sk = m_localTank->getSkillType();
+        if (sk == SkillType::SHIELD) {
+            m_particles.emitShieldActivate(m_localTank->getPos());
+        } else if (sk == SkillType::SPRINT) {
+            m_particles.emitSprintActivate(m_localTank->getPos());
+        } else if (sk == SkillType::SCATTER) {
+            // 散射：枪口闪光
+            float a = m_localTank->getAngle();
+            Vec2 p = m_localTank->getPos();
+            float muzzleDist = CollisionConfig::TANK_RADIUS + 8.0f;
+            Vec2 muzzlePos = { p.x + std::cos(a) * muzzleDist,
+                               p.y + std::sin(a) * muzzleDist };
+            m_particles.emitScatterMuzzle(muzzlePos, a);
+        }
         // 通知服务端释放技能
         if (m_netClient && m_netClient->isConnected()) {
             char buf[256]; uint16_t len;
@@ -189,7 +189,15 @@ void GameLoop::update(float dt) {
 }
 
 void GameLoop::updateBullets(float dt) {
-    for (auto& b : m_bullets) b->update(dt);
+    for (auto& b : m_bullets) {
+        b->update(dt);
+        // 散射子弹留下拖尾粒子
+        if (b->getType() == BulletType::SCATTER && b->isAlive()) {
+            bool isLocal = (b->getOwner() == m_localPlayerID);
+            COLORREF trailColor = isLocal ? RGB(255, 200, 50) : RGB(255, 140, 30);
+            m_particles.emitBulletTrail(b->getPos(), trailColor, 2.5f);
+        }
+    }
     m_bullets.erase(std::remove_if(m_bullets.begin(), m_bullets.end(),
         [](auto& b) { return !b->isAlive(); }), m_bullets.end());
 }
@@ -200,7 +208,12 @@ void GameLoop::checkCollisions() {
     for (auto& bullet : m_bullets) {
         if (!bullet->isAlive()) continue;
         if (m_map.checkBulletCollision(bullet->getPos(), CollisionConfig::BULLET_RADIUS, bullet->getDamage())) {
-            m_particles.emitExplosion(bullet->getPos(), RGB(200,150,50), 6);
+            // 根据子弹类型选择爆炸颜色
+            COLORREF expColor = (bullet->getType() == BulletType::SCATTER)
+                ? RGB(255, 180, 50)   // 散射子弹：橙金色爆炸
+                : RGB(200, 150, 50);   // 普通子弹：暗金色爆炸
+            int particleCount = (bullet->getType() == BulletType::SCATTER) ? 10 : 6;
+            m_particles.emitExplosion(bullet->getPos(), expColor, particleCount);
             bullet->destroy();
         }
     }
@@ -232,13 +245,6 @@ void GameLoop::applySnapshot(const Snapshot& snap) {
         StateInterpolator* interp = isLocal ? &m_localInterp : &m_enemyInterp;
         if (!tank) continue;
 
-        // 记录本地坦克的预测误差，用于平滑校正
-        if (isLocal && m_firstSnapDone && tank->isAlive()) {
-            Vec2 cur = tank->getPos();
-            m_predictionError.x = ts.pos.x - cur.x;
-            m_predictionError.y = ts.pos.y - cur.y;
-        }
-
         InterpState target = { ts.pos, ts.angle };
         if (!m_firstSnapDone) interp->snap(target);
         else                  interp->setTarget(target);
@@ -254,7 +260,35 @@ void GameLoop::applySnapshot(const Snapshot& snap) {
     m_bullets.clear();
     for (int i = 0; i < snap.bulletCount && i < MAX_BULLETS; i++) {
         const BulletState& bs = snap.bullets[i];
-        m_bullets.emplace_back(std::make_unique<Bullet>(bs.pos, bs.vel, bs.owner, bs.damage));
+        m_bullets.emplace_back(std::make_unique<Bullet>(bs.pos, bs.vel, bs.owner, bs.damage, bs.type));
+    }
+
+    // ===== 技能激活检测：状态从 0→active 时播放一次性特效 =====
+    if (m_localTank) {
+        if (!m_prevLocalShield && m_localTank->isShieldActive()) {
+            m_particles.emitShieldActivate(m_localTank->getPos());
+        }
+        if (m_prevLocalShield && !m_localTank->isShieldActive()) {
+            m_particles.emitShieldDeactivate(m_localTank->getPos());
+        }
+        if (!m_prevLocalSprint && m_localTank->isSprintActive()) {
+            m_particles.emitSprintActivate(m_localTank->getPos());
+        }
+        m_prevLocalShield = m_localTank->isShieldActive();
+        m_prevLocalSprint = m_localTank->isSprintActive();
+    }
+    if (m_enemyTank) {
+        if (!m_prevEnemyShield && m_enemyTank->isShieldActive()) {
+            m_particles.emitShieldActivate(m_enemyTank->getPos());
+        }
+        if (m_prevEnemyShield && !m_enemyTank->isShieldActive()) {
+            m_particles.emitShieldDeactivate(m_enemyTank->getPos());
+        }
+        if (!m_prevEnemySprint && m_enemyTank->isSprintActive()) {
+            m_particles.emitSprintActivate(m_enemyTank->getPos());
+        }
+        m_prevEnemyShield = m_enemyTank->isShieldActive();
+        m_prevEnemySprint = m_enemyTank->isSprintActive();
     }
 
     m_map.applyObstacleDestroyed(snap.obstacleCount, snap.obstaclesDestroyed);
@@ -262,6 +296,16 @@ void GameLoop::applySnapshot(const Snapshot& snap) {
 }
 
 void GameLoop::onHitReceived(const HitData& hit) {
+    // 统计伤害（本地玩家造成的伤害）
+    if (m_localTank && hit.attackerID == m_localTank->getPlayerID()) {
+        m_totalDamage += hit.damage;
+    }
+
+    // 统计击杀（敌人被击杀）
+    if (m_enemyTank && hit.victimID == m_enemyTank->getPlayerID() && hit.remainingHP <= 0) {
+        m_kills++;
+    }
+
     // 根据服务端确认的命中事件播放粒子效果
     Tank* victim = nullptr;
     if (m_localTank && m_localTank->getPlayerID() == hit.victimID)
@@ -271,7 +315,12 @@ void GameLoop::onHitReceived(const HitData& hit) {
 
     if (victim && victim->isAlive()) {
         Vec2 pos = victim->getPos();
-        m_particles.emitExplosion(pos, RGB(255, 150, 50));
+        // 爆炸粒子数量根据伤害值缩放
+        int particleCount = 8 + hit.damage / 5;
+        COLORREF expColor = (hit.damage >= 30) ? RGB(255, 100, 30) :  // 高伤害：深橙红
+                            (hit.damage >= 20) ? RGB(255, 160, 50) :   // 中伤害：橙色
+                                                 RGB(255, 200, 80);    // 低伤害：黄橙
+        m_particles.emitExplosion(pos, expColor, particleCount);
         m_particles.emitHit(pos, hit.damage);
     }
 }
@@ -294,6 +343,7 @@ void GameLoop::fireBullet() {
 // ====== 渲染（不变）======
 
 void GameLoop::drawMap() {
+    setfillstyle(BS_SOLID);
     setfillcolor(RGB(40,55,40));
     fillrectangle(0,0,MapConfig::WIDTH,MapConfig::HEIGHT);
     setlinecolor(RGB(100,100,100)); setlinestyle(PS_SOLID,2);
@@ -306,6 +356,27 @@ void GameLoop::drawTank(Tank* tank, COLORREF body, COLORREF turret) {
     int cx=(int)tank->getPos().x, cy=(int)tank->getPos().y;
     float a=tank->getAngle(), ca=std::cos(a), sa=std::sin(a);
 
+    // ==== 冲刺残影（在坦克本体之前绘制） ====
+    if (tank->isSprintActive()) {
+        for (int ghost = 1; ghost <= 3; ghost++) {
+            float alpha = 0.3f - ghost * 0.08f;
+            int gx = cx - (int)(ca * ghost * 8);
+            int gy = cy - (int)(sa * ghost * 8);
+            int hw=15, hh=11;
+            int lc[4][2]={{-hw,-hh},{hw,-hh},{hw,hh},{-hw,hh}};
+            POINT gp[4];
+            for (int i=0;i<4;i++) {
+                gp[i].x=gx+(int)(lc[i][0]*ca-lc[i][1]*sa);
+                gp[i].y=gy+(int)(lc[i][0]*sa+lc[i][1]*ca);
+            }
+            int br=(int)(GetRValue(body)*alpha), bg=(int)(GetGValue(body)*alpha), bb=(int)(GetBValue(body)*alpha);
+            setfillcolor(RGB(br, bg, bb));
+            setlinecolor(RGB((int)(30*alpha), (int)(30*alpha), (int)(30*alpha)));
+            fillpolygon(gp, 4);
+        }
+    }
+
+    // ==== 坦克本体 ====
     int hw=15,hh=11;
     int lc[4][2]={{-hw,-hh},{hw,-hh},{hw,hh},{-hw,hh}};
     POINT pts[4];
@@ -318,42 +389,253 @@ void GameLoop::drawTank(Tank* tank, COLORREF body, COLORREF turret) {
     int bl=18, bx=cx+(int)(ca*bl), by=cy+(int)(sa*bl);
     setlinecolor(turret); setlinestyle(PS_SOLID,4); line(cx,cy,bx,by);
 
-    if(tank->isShieldActive()){ setlinecolor(RGB(100,200,255)); setlinestyle(PS_SOLID,2); circle(cx,cy,22); }
-    if(tank->isSprintActive()){ setlinecolor(RGB(255,200,50)); setlinestyle(PS_SOLID,1);
-        for(int i=0;i<3;i++){ int tx=cx-(int)(ca*(10+i*6)),ty=cy-(int)(sa*(10+i*6)); circle(tx,ty,3-i); } }
+    // ==== 护盾效果：六边形旋转光盾 ====
+    if (tank->isShieldActive()) {
+        // 外圈脉冲光环
+        float pulse = 0.7f + 0.3f * std::sin((float)GetTickCount() * 0.005f);
+        int alpha = (int)(180 * pulse);
+        setlinecolor(RGB(alpha/2, alpha, alpha));
+        setlinestyle(PS_SOLID, 3);
+        circle(cx, cy, 24);
+
+        // 六边形护盾
+        POINT hex[6];
+        float hexR = 22.0f;
+        for (int i = 0; i < 6; i++) {
+            float ha = a + (3.14159265f * 2.0f * i) / 6.0f;
+            hex[i].x = cx + (int)(std::cos(ha) * hexR);
+            hex[i].y = cy + (int)(std::sin(ha) * hexR);
+        }
+        setlinecolor(RGB(60, 180 + (int)(75 * pulse), 255));
+        setlinestyle(PS_SOLID, 2);
+        polygon(hex, 6);
+
+        // 内圈闪烁
+        int innerAlpha = (int)(120 * pulse);
+        setlinecolor(RGB(innerAlpha/2, innerAlpha, innerAlpha));
+        setlinestyle(PS_DOT, 1);
+        circle(cx, cy, 19);
+        setlinestyle(PS_SOLID, 1);
+    }
+
+    // ==== 冲刺尾焰 ====
+    if (tank->isSprintActive()) {
+        for (int i = 0; i < 4; i++) {
+            int tx = cx - (int)(ca * (12 + i * 7));
+            int ty = cy - (int)(sa * (12 + i * 7));
+            int flameAlpha = 180 - i * 30;
+            int fr = flameAlpha, fg = flameAlpha * 3 / 4, fb = flameAlpha / 4;
+            setfillcolor(RGB(fr, fg > 255 ? 255 : fg, fb));
+            fillcircle(tx, ty, 4 - i);
+        }
+    }
 }
 
 void GameLoop::drawBullets() {
-    for(auto& b:m_bullets){
-        if(!b->isAlive())continue;
-        COLORREF c=(b->getOwner()==m_localPlayerID)?RGB(255,255,100):RGB(255,100,100);
-        setfillcolor(c); fillcircle((int)b->getPos().x,(int)b->getPos().y,4);
+    for (auto& b : m_bullets) {
+        if (!b->isAlive()) continue;
+
+        bool isLocal = (b->getOwner() == m_localPlayerID);
+        bool isScatter = (b->getType() == BulletType::SCATTER);
+        int dmg = b->getDamage();
+
+        // 子弹大小根据伤害值缩放（最小3，最大6）
+        int radius = 3 + dmg / 10;
+        if (radius > 6) radius = 6;
+
+        // ==== 散射子弹拖尾（预存位置） ====
+        if (isScatter) {
+            const auto& trail = b->getTrail();
+            int tsz = (int)trail.size();
+            for (int i = 0; i < tsz; i++) {
+                float alpha = (float)(i + 1) / (tsz + 1);
+                int tr = (int)(GetRValue(isLocal ? RGB(255, 200, 50) : RGB(255, 140, 30)) * alpha * 0.5f);
+                int tg = (int)(GetGValue(isLocal ? RGB(255, 200, 50) : RGB(255, 140, 30)) * alpha * 0.5f);
+                int tb = (int)(GetBValue(isLocal ? RGB(255, 200, 50) : RGB(255, 140, 30)) * alpha * 0.5f);
+                setfillcolor(RGB(tr, tg, tb));
+                fillcircle((int)trail[i].x, (int)trail[i].y, (int)(radius * 0.6f));
+            }
+        }
+
+        // ==== 子弹主体渲染 ====
+        if (isScatter) {
+            // 散射子弹：橙金色菱形效果
+            COLORREF outer = isLocal ? RGB(255, 180, 30) : RGB(255, 120, 20);
+            COLORREF inner = isLocal ? RGB(255, 240, 100) : RGB(255, 200, 80);
+
+            // 外圈光晕
+            setfillcolor(outer);
+            fillcircle((int)b->getPos().x, (int)b->getPos().y, radius + 2);
+
+            // 内核
+            setfillcolor(inner);
+            fillcircle((int)b->getPos().x, (int)b->getPos().y, radius - 1);
+
+            // 菱形高亮
+            setfillcolor(RGB(255, 255, 220));
+            int cx = (int)b->getPos().x, cy = (int)b->getPos().y;
+            int hs = radius / 2 + 1;
+            POINT diamond[4] = {
+                {cx, cy - hs},
+                {cx + hs, cy},
+                {cx, cy + hs},
+                {cx - hs, cy}
+            };
+            solidpolygon(diamond, 4);
+        } else {
+            // 普通子弹：小光点 + 光晕
+            COLORREF outer, inner, core;
+            if (isLocal) {
+                outer = RGB(255, 255, 80);
+                inner = RGB(255, 255, 180);
+                core  = RGB(255, 255, 255);
+            } else {
+                outer = RGB(255, 80, 60);
+                inner = RGB(255, 130, 110);
+                core  = RGB(255, 200, 180);
+            }
+
+            // 外圈光晕
+            setfillcolor(outer);
+            fillcircle((int)b->getPos().x, (int)b->getPos().y, radius);
+
+            // 内核
+            setfillcolor(inner);
+            fillcircle((int)b->getPos().x, (int)b->getPos().y, radius - 1);
+
+            // 中心高亮
+            setfillcolor(core);
+            fillcircle((int)b->getPos().x, (int)b->getPos().y, (radius > 3 ? 2 : 1));
+        }
     }
 }
 
 void GameLoop::drawHUD() {
-    if(m_localTank){
-        int x=10,y=10, bw=120,bh=12;
-        settextstyle(18,0,"黑体"); settextcolor(WHITE); outtextxy(x,y,"玩家");
-        float r=(float)m_localTank->getCurHP()/m_localTank->getMaxHP();
-        setfillcolor(RGB(60,60,60)); fillrectangle(x,y+22,x+bw,y+22+bh);
-        setfillcolor(r>0.3f?RGB(50,200,50):RGB(200,50,50)); fillrectangle(x,y+22,x+(int)(bw*r),y+22+bh);
-        char t[32]; snprintf(t,sizeof(t),"HP:%d/%d",m_localTank->getCurHP(),m_localTank->getMaxHP());
-        settextstyle(14,0,"宋体"); settextcolor(WHITE); outtextxy(x+bw+5,y+20,t);
-        if(m_localTank->getSkillCooldown()>0){ snprintf(t,sizeof(t),"技能CD:%.1fs",m_localTank->getSkillCooldown()); settextcolor(RGB(200,200,200)); outtextxy(x,y+40,t); }
-        else{ settextcolor(RGB(100,255,100)); outtextxy(x,y+40,"技能就绪[F]"); }
+    auto getSkillName = [](SkillType st) -> const char* {
+        switch (st) {
+            case SkillType::SHIELD:  return "护盾";
+            case SkillType::SPRINT:  return "冲刺";
+            case SkillType::SCATTER: return "散射";
+            default: return "未知";
+        }
+    };
+
+    if (m_localTank) {
+        int x = 10, y = 10, bw = 120, bh = 12;
+        // 玩家标签
+        settextstyle(18, 0, "黑体"); settextcolor(WHITE);
+        outtextxy(x, y, "玩家");
+
+        // HP条
+        float r = (float)m_localTank->getCurHP() / m_localTank->getMaxHP();
+        setfillcolor(RGB(60, 60, 60));
+        fillrectangle(x, y + 22, x + bw, y + 22 + bh);
+        COLORREF hpColor = r > 0.5f ? RGB(50, 200, 50) :
+                           r > 0.25f ? RGB(220, 180, 30) : RGB(200, 50, 50);
+        setfillcolor(hpColor);
+        fillrectangle(x, y + 22, x + (int)(bw * r), y + 22 + bh);
+        char t[64];
+        snprintf(t, sizeof(t), "HP:%d/%d", m_localTank->getCurHP(), m_localTank->getMaxHP());
+        settextstyle(14, 0, "宋体"); settextcolor(WHITE);
+        outtextxy(x + bw + 5, y + 20, t);
+
+        // 技能信息
+        SkillType st = m_localTank->getSkillType();
+        const char* skillName = getSkillName(st);
+        float cd = m_localTank->getSkillCooldown();
+        bool active = m_localTank->isShieldActive() || m_localTank->isSprintActive();
+
+        if (active) {
+            // 技能激活中 - 显示技能名和剩余时间
+            snprintf(t, sizeof(t), "%s激活中 %.1fs", skillName,
+                     m_localTank->getSkillCooldown() > 0 ? m_localTank->getSkillCooldown() : 0.0f);
+            settextcolor(RGB(100, 255, 150));
+            outtextxy(x, y + 40, t);
+
+            // 持续时间进度条
+            float durPct = 1.0f; // 简化：用技能CD近似
+            setfillcolor(RGB(40, 40, 40));
+            fillrectangle(x, y + 56, x + bw, y + 56 + 6);
+            COLORREF skillBarColor;
+            switch (st) {
+                case SkillType::SHIELD:  skillBarColor = RGB(80, 180, 255); break;
+                case SkillType::SPRINT:  skillBarColor = RGB(255, 200, 50); break;
+                case SkillType::SCATTER: skillBarColor = RGB(255, 150, 40); break;
+                default: skillBarColor = RGB(150, 150, 150); break;
+            }
+            setfillcolor(skillBarColor);
+            fillrectangle(x, y + 56, x + (int)(bw * durPct), y + 56 + 6);
+        } else if (cd > 0) {
+            // CD中
+            snprintf(t, sizeof(t), "%s CD:%.1fs", skillName, cd);
+            settextcolor(RGB(200, 180, 100));
+            outtextxy(x, y + 40, t);
+        } else {
+            // 就绪
+            snprintf(t, sizeof(t), "%s 就绪 [F]", skillName);
+            settextcolor(RGB(100, 255, 100));
+            outtextxy(x, y + 40, t);
+        }
+
+        // 坦克类型标签
+        const char* tankTypeName = "";
+        switch (m_localTank->getType()) {
+            case TankType::HEAVY: tankTypeName = "重型坦克"; break;
+            case TankType::LIGHT: tankTypeName = "轻型坦克"; break;
+            case TankType::SCOUT: tankTypeName = "侦察坦克"; break;
+        }
+        settextcolor(RGB(180, 180, 180));
+        settextstyle(12, 0, "宋体");
+        outtextxy(x, y + 68, tankTypeName);
+
+        // 本局统计
+        snprintf(t, sizeof(t), "伤害:%d  击杀:%d", m_totalDamage, m_kills);
+        outtextxy(x, y + 84, t);
     }
-    if(m_enemyTank){
-        int x=MapConfig::WIDTH-170,y=10,bw=120,bh=12;
-        settextstyle(18,0,"黑体"); settextcolor(WHITE); outtextxy(x,y,"敌人");
-        float r=(float)m_enemyTank->getCurHP()/m_enemyTank->getMaxHP();
-        setfillcolor(RGB(60,60,60)); fillrectangle(x,y+22,x+bw,y+22+bh);
-        setfillcolor(r>0.3f?RGB(50,200,50):RGB(200,50,50)); fillrectangle(x,y+22,x+(int)(bw*r),y+22+bh);
-        char t[32]; snprintf(t,sizeof(t),"HP:%d/%d",m_enemyTank->getCurHP(),m_enemyTank->getMaxHP());
-        settextstyle(14,0,"宋体"); settextcolor(WHITE); outtextxy(x+bw+5,y+20,t);
+
+    if (m_enemyTank) {
+        int x = MapConfig::WIDTH - 170, y = 10, bw = 120, bh = 12;
+        settextstyle(18, 0, "黑体"); settextcolor(WHITE);
+        outtextxy(x, y, "敌人");
+
+        float r = (float)m_enemyTank->getCurHP() / m_enemyTank->getMaxHP();
+        setfillcolor(RGB(60, 60, 60));
+        fillrectangle(x, y + 22, x + bw, y + 22 + bh);
+        COLORREF hpColor = r > 0.5f ? RGB(50, 200, 50) :
+                           r > 0.25f ? RGB(220, 180, 30) : RGB(200, 50, 50);
+        setfillcolor(hpColor);
+        fillrectangle(x, y + 22, x + (int)(bw * r), y + 22 + bh);
+        char t[64];
+        snprintf(t, sizeof(t), "HP:%d/%d", m_enemyTank->getCurHP(), m_enemyTank->getMaxHP());
+        settextstyle(14, 0, "宋体"); settextcolor(WHITE);
+        outtextxy(x + bw + 5, y + 20, t);
+
+        // 敌人技能指示
+        if (m_enemyTank->isShieldActive()) {
+            settextcolor(RGB(100, 200, 255));
+            outtextxy(x, y + 40, "护盾激活中");
+        } else if (m_enemyTank->isSprintActive()) {
+            settextcolor(RGB(255, 200, 50));
+            outtextxy(x, y + 40, "冲刺激活中");
+        }
+
+        // 敌人坦克类型
+        const char* enemyTypeName = "";
+        switch (m_enemyTank->getType()) {
+            case TankType::HEAVY: enemyTypeName = "重型坦克"; break;
+            case TankType::LIGHT: enemyTypeName = "轻型坦克"; break;
+            case TankType::SCOUT: enemyTypeName = "侦察坦克"; break;
+        }
+        settextcolor(RGB(180, 180, 180));
+        settextstyle(12, 0, "宋体");
+        outtextxy(x, y + 54, enemyTypeName);
     }
-    settextstyle(14,0,"宋体"); settextcolor(RGB(150,150,150));
-    outtextxy(MapConfig::WIDTH/2-80,MapConfig::HEIGHT-25,"WASD移动 空格射击 F技能");
+
+    // 底部操作提示
+    settextstyle(14, 0, "宋体");
+    settextcolor(RGB(150, 150, 150));
+    outtextxy(MapConfig::WIDTH / 2 - 100, MapConfig::HEIGHT - 25,
+              "WASD移动  空格射击  F技能");
 }
 
 void GameLoop::draw() {
@@ -368,7 +650,7 @@ void GameLoop::draw() {
     if(m_localTank&&m_enemyTank)
         Minimap::draw(m_localTank->getPos(),m_enemyTank->getPos(),m_localTank->isAlive(),m_enemyTank->isAlive());
     if(m_gameOver){
-        setfillstyle(BS_NULL); settextstyle(48,0,"黑体");
+        settextstyle(48,0,"黑体");
         bool win=m_enemyTank&&!m_enemyTank->isAlive();
         settextcolor(win?RGB(50,255,50):RGB(255,50,50));
         const char* txt=win?"胜  利!":"败  北!";

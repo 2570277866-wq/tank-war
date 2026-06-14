@@ -305,6 +305,7 @@ void GameWorld::SpawnBullet(int slot) {
     bullets[bulletCount].vel = {dir.x * attrs.bulletSpeed, dir.y * attrs.bulletSpeed};
     bullets[bulletCount].owner = tanks[slot].playerID;
     bullets[bulletCount].damage = attrs.damage;
+    bullets[bulletCount].type = BulletType::NORMAL;
     ++bulletCount;
 }
 
@@ -327,6 +328,7 @@ void GameWorld::SpawnScatter(int slot) {
         bullets[bulletCount].vel = {ax * attrs.bulletSpeed, ay * attrs.bulletSpeed};
         bullets[bulletCount].owner = tanks[slot].playerID;
         bullets[bulletCount].damage = attrs.damage;
+        bullets[bulletCount].type = BulletType::SCATTER;
         ++bulletCount;
     }
 }

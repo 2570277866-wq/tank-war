@@ -62,6 +62,11 @@ enum class SkillType : uint8_t {
     SCATTER = 2,
 };
 
+enum class BulletType : uint8_t {
+    NORMAL  = 0,
+    SCATTER = 1,
+};
+
 struct TankState {
     Vec2     pos;
     float    angle;
@@ -78,10 +83,11 @@ struct TankState {
 };
 
 struct BulletState {
-    Vec2 pos;
-    Vec2 vel;
-    int  owner;
-    int  damage;
+    Vec2       pos;
+    Vec2       vel;
+    int        owner;
+    int        damage;
+    BulletType type;
 };
 
 struct SkillEffectState {

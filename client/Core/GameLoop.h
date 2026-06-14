@@ -38,6 +38,12 @@ public:
     Tank* getEnemyTank()    { return m_enemyTank.get(); }
     const std::vector<std::unique_ptr<Bullet>>& getBullets() const { return m_bullets; }
 
+    // 游戏结算数据
+    float getGameTime()   const { return m_gameTime; }
+    int   getKills()      const { return m_kills; }
+    int   getTotalDamage() const { return m_totalDamage; }
+    bool  isLocalWinner() const { return m_enemyTank && !m_enemyTank->isAlive(); }
+
     void setLocalTankType(TankType type) { m_localTankType = type; }
     void setNetClient(NetClient* nc) { m_netClient = nc; }
     void fireBullet();
@@ -81,13 +87,18 @@ private:
     StateInterpolator m_enemyInterp;
     bool              m_firstSnapDone = false;
 
-    // 客户端位置预测：本地输入立即响应，服务端快照校正
-    Vec2  m_predictionError = {0.0f, 0.0f};  // 累积预测误差（服务端位置 - 预测位置）
-
     // 自适应插值：跟踪实际快照间隔
     float m_timeSinceLastSnap = 0.0f;
 
     // 心跳与输入节流（服务端 20Hz tick，客户端无需 60fps 全发）
     float m_heartbeatTimer = 0.0f;
     float m_inputSendTimer = 0.0f;
+
+    // 技能激活追踪（检测状态变化以播放一次性特效）
+    float m_prevLocalSkillTimer  = 0.0f;
+    float m_prevEnemySkillTimer  = 0.0f;
+    bool  m_prevLocalShield  = false;
+    bool  m_prevEnemyShield  = false;
+    bool  m_prevLocalSprint  = false;
+    bool  m_prevEnemySprint  = false;
 };

@@ -1,6 +1,5 @@
-# Build
+# Build (MinGW CMake — 统一构建目录)
 build/
-build-mingw/
 *.exe
 *.o
 *.obj
@@ -11,7 +10,6 @@ build-mingw/
 
 # IDE
 .vs/
-.vscode/
 *.suo
 *.user
 *.sln.docstates
@@ -24,8 +22,7 @@ x86/
 .DS_Store
 Thumbs.db
 
-# Server runtime files (data & logs)
+# Server runtime files (运行时数据/日志 — 统一放在 build/ 下)
 server.log
-server/*.log
-server/*.dat
 server_ip.cfg
+*.dat
