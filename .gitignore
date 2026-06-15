@@ -22,6 +22,9 @@ x86/
 .DS_Store
 Thumbs.db
 
+# Report generation script
+gen_report.py
+
 # Server runtime files (运行时数据/日志 — 统一放在 build/ 下)
 server.log
 server_ip.cfg
