@@ -1,6 +1,9 @@
-# Build (MinGW CMake — 统一构建目录)
-build/
-*.exe
+# Build — 忽略中间文件，仅提交产物
+build/*
+!build/tank-war.exe
+!build/tank_server.exe
+!build/Makefile
+
 *.o
 *.obj
 *.pdb
@@ -22,10 +25,8 @@ x86/
 .DS_Store
 Thumbs.db
 
-# Report generation script
-gen_report.py
-
-# Server runtime files (运行时数据/日志 — 统一放在 build/ 下)
+# Server runtime files (运行时数据/日志)
 server.log
 server_ip.cfg
 *.dat
+client/tank-war
