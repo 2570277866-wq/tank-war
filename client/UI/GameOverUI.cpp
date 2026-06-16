@@ -1,4 +1,5 @@
 #include "GameOverUI.h"
+#include "TextHelper.h"
 #include <Windows.h>
 
 GameOverResult GameOverUI::show(const GameOverInfo& info) {
@@ -14,10 +15,10 @@ GameOverResult GameOverUI::show(const GameOverInfo& info) {
         settextstyle(48, 0, "黑体");
         if (info.playerWin) {
             settextcolor(RGB(50, 255, 50));
-            outtextxy(300, 100, "胜  利!");
+            outtextxy_u8(300, 100, "胜  利!");
         } else {
             settextcolor(RGB(255, 50, 50));
-            outtextxy(300, 100, "败  北!");
+            outtextxy_u8(300, 100, "败  北!");
         }
 
         settextstyle(22, 0, "黑体");
@@ -28,9 +29,9 @@ GameOverResult GameOverUI::show(const GameOverInfo& info) {
         snprintf(line2, sizeof(line2), "总伤害: %d", info.playerDamage);
         snprintf(line3, sizeof(line3), "对局时长: %.0fs", info.duration);
 
-        outtextxy(310, 220, line1);
-        outtextxy(310, 260, line2);
-        outtextxy(310, 300, line3);
+        outtextxy_u8(310, 220, line1);
+        outtextxy_u8(310, 260, line2);
+        outtextxy_u8(310, 300, line3);
 
         // 获取鼠标位置（只获取一次，共用）
         MOUSEMSG m = {};
@@ -45,7 +46,7 @@ GameOverResult GameOverUI::show(const GameOverInfo& info) {
         fillroundrect(220, 400, 420, 445, 8, 8);
         settextcolor(WHITE);
         settextstyle(20, 0, "黑体");
-        outtextxy(275, 412, "再来一局");
+        outtextxy_u8(275, 412, "再来一局");
 
         // "返回主菜单" 按钮
         bool hoverMenu = (mx >= 460 && mx <= 660 && my >= 400 && my <= 445);
@@ -54,7 +55,7 @@ GameOverResult GameOverUI::show(const GameOverInfo& info) {
         fillroundrect(460, 400, 660, 445, 8, 8);
         settextcolor(WHITE);
         settextstyle(20, 0, "黑体");
-        outtextxy(495, 412, "返回主菜单");
+        outtextxy_u8(495, 412, "返回主菜单");
 
         FlushBatchDraw();
 

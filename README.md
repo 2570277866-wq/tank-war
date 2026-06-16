@@ -73,6 +73,12 @@ cmake -B build -G "MSYS Makefiles"
 cmake --build build -j$(nproc)
 ```
 
+**如果 cmake 报 `No rule to make target` 错误**（常见于项目路径含中文如 `桌面`），使用备用编译脚本：
+
+```bash
+bash build/build.sh
+```
+
 构建产物：
 - `build/tank-war.exe` — 客户端
 - `build/tank_server.exe` — 服务端
@@ -164,10 +170,38 @@ EasyX 头文件未安装或路径不对，检查 `C:/msys64/ucrt64/include/` 下
 ### Q: 链接报 `undefined reference to __imp___iob_func`
 EasyX 版本与 UCRT 不兼容。本项目已内置兼容 shim（`client/iob_shim.c`），如果仍报错，说明 EasyX 库版本过旧，请从官网下载最新版。
 
+### Q: 客户端中文显示乱码（方框/问号/乱码）
+
+**原因**：EasyX 使用 ANSI (GBK) 版本的 GDI 文字函数，而项目源码是 UTF-8 编码。直接传递会导致编码不匹配。
+
+**本项目的解决方案**：`Common/TextHelper.h` 提供了运行时 UTF-8 → 系统 ANSI 自动转换，所有界面文字均通过 `outtextxy_u8` 等包装函数输出，兼容 MSVC 和 MinGW。
+
+如果你自行新增了中文界面文字，请使用 `outtextxy_u8` / `textwidth_u8` / `textheight_u8` 替代 EasyX 原版函数。
+
 ### Q: 客户端连接服务端超时
+
 - 检查服务端是否已启动
 - 检查 IP 地址是否填写正确（局域网用服务端打印的 IP）
-- 检查防火墙是否放行 `9527` 端口
+- **检查 Windows 防火墙是否放行 `9527` 端口**（最常见原因），详见下方
+
+#### Windows 防火墙设置
+
+服务端所在的电脑需要放行入站端口 **9527**。有以下几种方式：
+
+**方式一（推荐）：添加端口规则**
+
+1. 打开「Windows 安全中心」→「防火墙和网络保护」→「高级设置」
+2. 左侧选择「入站规则」→ 右侧「新建规则」
+3. 规则类型：**端口** → 下一步
+4. TCP，特定本地端口：**9527** → 下一步
+5. 允许连接 → 下一步
+6. 勾选所有配置文件（域/专用/公用）→ 下一步
+7. 名称填 `坦克大战服务端` → 完成
+
+**方式二（命令行，管理员权限运行）：**
+```powershell
+netsh advfirewall firewall add rule name="坦克大战服务端" dir=in action=allow protocol=TCP localport=9527
+```
 
 ### Q: 两个客户端都是本机，如何联机测试？
 启动一个服务端 + 两个客户端，两个客户端都连接 `127.0.0.1` 即可。

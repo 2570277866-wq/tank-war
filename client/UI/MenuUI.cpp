@@ -2,6 +2,7 @@
 #include "MenuUI.h"
 #include "../Net/NetClient.h"
 #include "../Net/MsgCodec.h"
+#include "TextHelper.h"
 #include <cstring>
 #include <atomic>
 #include <chrono>
@@ -20,9 +21,9 @@ void MenuUI::drawButton(int x, int y, int w, int h,
 
     settextcolor(WHITE);
     settextstyle(24, 0, "黑体");
-    int tw = textwidth(text);
-    int th = textheight(text);
-    outtextxy(x + (w-tw)/2, y + (h-th)/2, text);
+    int tw = textwidth_u8(text);
+    int th = textheight_u8(text);
+    outtextxy_u8(x + (w-tw)/2, y + (h-th)/2, text);
 }
 
 // ===== 主菜单 =====
@@ -52,7 +53,7 @@ MenuResult MenuUI::showMain() {
         // 标题
         settextcolor(RGB(255, 220, 50));
         settextstyle(48, 0, "黑体");
-        outtextxy(W / 2 - 120, 120, "双人联机坦克大战");
+        outtextxy_u8(W / 2 - 120, 120, "双人联机坦克大战");
 
         // 按钮
         bool hoverStart = isMouseOver(mx, my, btnX, 270, btnW, btnH);
@@ -112,7 +113,7 @@ SelectResult MenuUI::showTankSelect() {
         // 标题
         settextcolor(RGB(255,220,50));
         settextstyle(32, 0, "黑体");
-        outtextxy(270, 40, "选择你的坦克");
+        outtextxy_u8(270, 40, "选择你的坦克");
 
         // 三个坦克卡片
         for (int i = 0; i < 3; i++) {
@@ -137,13 +138,13 @@ SelectResult MenuUI::showTankSelect() {
             // 名字
             settextcolor(opts[i].color);
             settextstyle(22, 0, "黑体");
-            int tw = textwidth(opts[i].name);
-            outtextxy(cx + (cw-tw)/2, cy+115, opts[i].name);
+            int tw = textwidth_u8(opts[i].name);
+            outtextxy_u8(cx + (cw-tw)/2, cy+115, opts[i].name);
 
             // 描述
             settextcolor(RGB(200,200,200));
             settextstyle(16, 0, "宋体");
-            outtextxy(cx+10, cy+150, opts[i].desc);
+            outtextxy_u8(cx+10, cy+150, opts[i].desc);
 
             if (hover && hasMsg && m.uMsg == WM_LBUTTONDOWN)
                 selected = i;
@@ -156,7 +157,7 @@ SelectResult MenuUI::showTankSelect() {
         // 提示
         settextcolor(RGB(150,150,150));
         settextstyle(16, 0, "宋体");
-        outtextxy(280, 540, "ESC 返回主菜单");
+        outtextxy_u8(280, 540, "ESC 返回主菜单");
 
         FlushBatchDraw();
 
@@ -185,10 +186,10 @@ void MenuUI::showLeaderboard(const char* serverIP) {
 
             settextcolor(RGB(255, 100, 100));
             settextstyle(24, 0, "黑体");
-            outtextxy(W / 2 - 150, H / 2 - 30, "无法连接到服务器");
+            outtextxy_u8(W / 2 - 150, H / 2 - 30, "无法连接到服务器");
             settextcolor(RGB(200, 200, 200));
             settextstyle(18, 0, "宋体");
-            outtextxy(W / 2 - 130, H / 2 + 20, "按任意键返回主菜单");
+            outtextxy_u8(W / 2 - 130, H / 2 + 20, "按任意键返回主菜单");
 
             FlushBatchDraw();
 
@@ -244,26 +245,26 @@ void MenuUI::showLeaderboard(const char* serverIP) {
         // 标题
         settextcolor(RGB(255, 220, 50));
         settextstyle(36, 0, "黑体");
-        outtextxy(W / 2 - 80, 40, "排 行 榜");
+        outtextxy_u8(W / 2 - 80, 40, "排 行 榜");
 
         if (!received) {
             settextcolor(RGB(255, 150, 50));
             settextstyle(20, 0, "宋体");
-            outtextxy(W / 2 - 100, H / 2, "获取数据超时，请稍后重试");
+            outtextxy_u8(W / 2 - 100, H / 2, "获取数据超时，请稍后重试");
         } else if (rankData.count == 0) {
             settextcolor(RGB(200, 200, 200));
             settextstyle(22, 0, "宋体");
-            outtextxy(W / 2 - 60, H / 2, "暂无数据");
+            outtextxy_u8(W / 2 - 60, H / 2, "暂无数据");
         } else {
             // 表头
             settextcolor(RGB(200, 200, 200));
             settextstyle(20, 0, "黑体");
             int colX[5] = { 120, 260, 420, 560, 700 };
-            outtextxy(colX[0], 110, "排名");
-            outtextxy(colX[1], 110, "玩家");
-            outtextxy(colX[2], 110, "胜场");
-            outtextxy(colX[3], 110, "败场");
-            outtextxy(colX[4], 110, "击杀");
+            outtextxy_u8(colX[0], 110, "排名");
+            outtextxy_u8(colX[1], 110, "玩家");
+            outtextxy_u8(colX[2], 110, "胜场");
+            outtextxy_u8(colX[3], 110, "败场");
+            outtextxy_u8(colX[4], 110, "击杀");
 
             // 分隔线
             setlinecolor(RGB(100, 100, 150));
@@ -283,9 +284,9 @@ void MenuUI::showLeaderboard(const char* serverIP) {
 
                 char rankStr[8];
                 snprintf(rankStr, sizeof(rankStr), "#%d", i + 1);
-                outtextxy(colX[0], y, rankStr);
+                outtextxy_u8(colX[0], y, rankStr);
 
-                outtextxy(colX[1], y, rankData.entries[i].name);
+                outtextxy_u8(colX[1], y, rankData.entries[i].name);
 
                 char winsStr[16], lossesStr[16], killsStr[16];
                 snprintf(winsStr, sizeof(winsStr), "%d", rankData.entries[i].wins);
@@ -305,6 +306,86 @@ void MenuUI::showLeaderboard(const char* serverIP) {
 
         if (hasMsg && m.uMsg == WM_LBUTTONDOWN && hoverBack) return;
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) return;
+
+        Sleep(16);
+    }
+}
+
+// ===== 通用错误/提示对话框 =====
+bool MenuUI::showMessage(const char* title, const char* subtitle, bool okOnly) {
+    int W = MapConfig::WIDTH, H = MapConfig::HEIGHT;
+    FlushMouseMsgBuffer();
+
+    while (true) {
+        MOUSEMSG m = {};
+        bool hasMsg = MouseHit();
+        int mx = 0, my = 0;
+        if (hasMsg) { m = GetMouseMsg(); mx = m.x; my = m.y; }
+
+        cleardevice();
+        setbkcolor(RGB(20, 20, 40));
+        cleardevice();
+        setfillstyle(BS_SOLID);
+
+        // 半透明遮罩背景
+        setfillcolor(RGB(15, 15, 35));
+        fillrectangle(200, 180, W - 200, H - 180);
+        setlinecolor(RGB(100, 100, 160));
+        setlinestyle(PS_SOLID, 2);
+        rectangle(200, 180, W - 200, H - 180);
+
+        // 标题（红色突出）
+        settextcolor(RGB(255, 120, 80));
+        settextstyle(28, 0, "黑体");
+        int tw = textwidth_u8(title);
+        outtextxy_u8((W - tw) / 2, 230, title);
+
+        // 副标题（说明文字）
+        if (subtitle && subtitle[0]) {
+            settextcolor(RGB(200, 200, 200));
+            settextstyle(18, 0, "宋体");
+            tw = textwidth_u8(subtitle);
+            outtextxy_u8((W - tw) / 2, 300, subtitle);
+        }
+
+        if (okOnly) {
+            // 仅确定按钮
+            int btnX = (W - 160) / 2, btnY = 380, btnW = 160, btnH = 42;
+            bool hoverOK = isMouseOver(mx, my, btnX, btnY, btnW, btnH);
+            drawButton(btnX, btnY, btnW, btnH, "确  定", hoverOK);
+
+            FlushBatchDraw();
+
+            if (hasMsg && m.uMsg == WM_LBUTTONDOWN && hoverOK) return true;
+            if (GetAsyncKeyState(VK_RETURN) & 0x8000) return true;
+            if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) return true;
+        } else {
+            // 重试 + 返回 两个按钮
+            int btnRetryX = 320, btnBackX = 520, btnW = 160, btnH = 42, btnY = 380;
+            bool hoverRetry = isMouseOver(mx, my, btnRetryX, btnY, btnW, btnH);
+            bool hoverBack  = isMouseOver(mx, my, btnBackX, btnY, btnW, btnH);
+
+            setfillcolor(hoverRetry ? RGB(80, 160, 80) : RGB(40, 120, 40));
+            setlinecolor(RGB(150, 255, 150));
+            fillroundrect(btnRetryX, btnY, btnRetryX + btnW, btnY + btnH, 8, 8);
+            settextcolor(WHITE);
+            settextstyle(20, 0, "黑体");
+            outtextxy_u8(btnRetryX + 50, btnY + 10, "重  试");
+
+            setfillcolor(hoverBack ? RGB(80, 80, 200) : RGB(50, 50, 150));
+            setlinecolor(RGB(200, 200, 255));
+            fillroundrect(btnBackX, btnY, btnBackX + btnW, btnY + btnH, 8, 8);
+            settextcolor(WHITE);
+            outtextxy_u8(btnBackX + 50, btnY + 10, "返  回");
+
+            FlushBatchDraw();
+
+            if (hasMsg && m.uMsg == WM_LBUTTONDOWN) {
+                if (hoverRetry) return true;
+                if (hoverBack)  return false;
+            }
+            if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) return false;
+        }
 
         Sleep(16);
     }

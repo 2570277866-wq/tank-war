@@ -1,6 +1,7 @@
 #include <WinSock2.h>
 #include <graphics.h>
 #include "Core/GameLoop.h"
+#include "TextHelper.h"
 #include "UI/MenuUI.h"
 #include "UI/LoginUI.h"
 #include "UI/WaitUI.h"
@@ -75,10 +76,49 @@ int main() {
 
             FlushMouseMsgBuffer();
 
-            // 连接服务端
-            if (!netClient.connect(cachedServerIP.c_str(), SERVER_PORT)) {
-                hasCachedLogin = false;
-                continue;
+            // ===== 连接服务端（带错误反馈和重试） =====
+            bool connected = false;
+            while (!connected) {
+                // 显示 "正在连接..." 提示
+                {
+                    cleardevice();
+                    setbkcolor(RGB(20, 20, 40));
+                    cleardevice();
+                    settextcolor(RGB(255, 220, 50));
+                    settextstyle(28, 0, "黑体");
+                    outtextxy_u8(350, 320, "正在连接服务器...");
+                    settextcolor(RGB(150, 150, 200));
+                    settextstyle(16, 0, "宋体");
+                    std::string hint = "目标: " + cachedServerIP + ":" + std::to_string(SERVER_PORT);
+                    outtextxy_u8(400, 380, hint.c_str());
+                    FlushBatchDraw();
+                }
+
+                if (netClient.connect(cachedServerIP.c_str(), SERVER_PORT)) {
+                    connected = true;
+                    break;
+                }
+
+                // 连接失败：显示错误对话框，询问重试或返回
+                bool retry = MenuUI::showMessage(
+                    "连接服务器失败",
+                    "请检查：\n"
+                    "  1. 服务端是否已启动\n"
+                    "  2. IP 地址是否正确\n"
+                    "  3. 服务端防火墙是否放行端口 9527",
+                    false);  // 重试 / 返回
+                if (!retry) {
+                    hasCachedLogin = false;
+                    FlushMouseMsgBuffer();
+                    break;  // 跳出 connect 循环 → 回到 login 选择
+                }
+                // retry → 再次尝试 connect
+            }
+
+            if (!connected) {
+                // 用户选择了返回，回到登录界面
+                // hasCachedLogin 已经 = false
+                continue;  // 回到外层主菜单循环
             }
 
             // 发送登录或注册
@@ -106,15 +146,34 @@ int main() {
                     }
                 });
 
+                auto authStart = std::chrono::high_resolution_clock::now();
+                const float AUTH_TIMEOUT_SEC = 10.0f;  // 10 秒超时
+
                 while (!authDone) {
                     netClient.poll();
+
+                    auto now = std::chrono::high_resolution_clock::now();
+                    float elapsed = std::chrono::duration<float>(now - authStart).count();
+                    if (elapsed > AUTH_TIMEOUT_SEC) break;
+
                     if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) break;
                     Sleep(10);
                 }
 
-                if (!authOK) {
+                if (!authDone || !authOK) {
                     netClient.disconnect();
                     hasCachedLogin = false;
+
+                    const char* errTitle = nullptr;
+                    const char* errSub   = nullptr;
+                    if (!authDone) {
+                        errTitle = "登录超时";
+                        errSub   = "服务器无响应，请检查网络连接";
+                    } else {
+                        errTitle = "登录失败";
+                        errSub   = "用户名或密码错误，请重试";
+                    }
+                    MenuUI::showMessage(errTitle, errSub);
                     FlushMouseMsgBuffer();
                     continue;
                 }

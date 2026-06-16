@@ -46,10 +46,10 @@ target_link_libraries(tank-war PRIVATE
     easyx
 )
 
-# MinGW: EasyX is ANSI-only; source is UTF-8, need GBK for GDI on Chinese Windows
-# This flag ONLY applies to the client (GUI with EasyX), NOT the server
+# MinGW: 源码 UTF-8，执行字符集保持 UTF-8（默认）。
+# EasyX 的 ANSI→GBK 转换由 TextHelper.h 在运行时处理。
 if(MINGW)
-    target_compile_options(tank-war PRIVATE -fexec-charset=GBK)
+    target_compile_options(tank-war PRIVATE -fexec-charset=UTF-8)
 endif()
 
 # MinGW: 旧版 EasyX 引用 __imp___iob_func，新版 UCRT 已移除该符号

@@ -1,4 +1,5 @@
 #include "LoginUI.h"
+#include "TextHelper.h"
 #include <Windows.h>
 
 bool LoginUI::isMouseOver(int mx, int my, int x, int y, int w, int h) {
@@ -14,9 +15,9 @@ void LoginUI::drawButton(int x, int y, int w, int h,
 
     settextcolor(WHITE);
     settextstyle(20, 0, "黑体");
-    int tw = textwidth(text);
-    int th = textheight(text);
-    outtextxy(x + (w - tw) / 2, y + (h - th) / 2, text);
+    int tw = textwidth_u8(text);
+    int th = textheight_u8(text);
+    outtextxy_u8(x + (w - tw) / 2, y + (h - th) / 2, text);
 }
 
 void LoginUI::drawInputBox(int x, int y, int w, int h,
@@ -25,7 +26,7 @@ void LoginUI::drawInputBox(int x, int y, int w, int h,
                            bool focused, bool isPassword) {
     settextcolor(RGB(200, 200, 200));
     settextstyle(18, 0, "黑体");
-    outtextxy(x, y - 24, label);
+    outtextxy_u8(x, y - 24, label);
 
     setfillcolor(RGB(30, 30, 60));
     setlinecolor(focused ? RGB(100, 150, 255) : RGB(80, 80, 100));
@@ -88,7 +89,7 @@ LoginResult LoginUI::show(LoginInfo& outInfo) {
 
         settextcolor(RGB(255, 220, 50));
         settextstyle(36, 0, "黑体");
-        outtextxy(280, 100, "登  录");
+        outtextxy_u8(280, 100, "登  录");
 
         drawInputBox(boxX, serverY, boxW, boxH,
                      "服务器地址", serverAddr, focus == 0, false);
@@ -104,8 +105,8 @@ LoginResult LoginUI::show(LoginInfo& outInfo) {
 
         settextcolor(RGB(150, 150, 150));
         settextstyle(14, 0, "宋体");
-        outtextxy(260, 440, "Tab 切换输入框    Enter 提交登录");
-        outtextxy(300, 465, "ESC 返回主菜单");
+        outtextxy_u8(260, 440, "Tab 切换输入框    Enter 提交登录");
+        outtextxy_u8(300, 465, "ESC 返回主菜单");
 
         FlushBatchDraw();
 

@@ -1,8 +1,8 @@
-# Build — 忽略中间文件，仅提交产物
+# Build — 忽略中间文件，仅提交产物和编译脚本
 build/*
 !build/tank-war.exe
 !build/tank_server.exe
-!build/Makefile
+!build/build.sh
 
 *.o
 *.obj

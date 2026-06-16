@@ -1,4 +1,5 @@
 #include "GameLoop.h"
+#include "TextHelper.h"
 #include <iostream>
 #include <cmath>
 #include <algorithm>
@@ -524,7 +525,7 @@ void GameLoop::drawHUD() {
         int x = 10, y = 10, bw = 120, bh = 12;
         // 玩家标签
         settextstyle(18, 0, "黑体"); settextcolor(WHITE);
-        outtextxy(x, y, "玩家");
+        outtextxy_u8(x, y, "玩家");
 
         // HP条
         float r = (float)m_localTank->getCurHP() / m_localTank->getMaxHP();
@@ -550,7 +551,7 @@ void GameLoop::drawHUD() {
             snprintf(t, sizeof(t), "%s激活中 %.1fs", skillName,
                      m_localTank->getSkillCooldown() > 0 ? m_localTank->getSkillCooldown() : 0.0f);
             settextcolor(RGB(100, 255, 150));
-            outtextxy(x, y + 40, t);
+            outtextxy_u8(x, y + 40, t);
 
             // 持续时间进度条
             float durPct = 1.0f; // 简化：用技能CD近似
@@ -569,12 +570,12 @@ void GameLoop::drawHUD() {
             // CD中
             snprintf(t, sizeof(t), "%s CD:%.1fs", skillName, cd);
             settextcolor(RGB(200, 180, 100));
-            outtextxy(x, y + 40, t);
+            outtextxy_u8(x, y + 40, t);
         } else {
             // 就绪
             snprintf(t, sizeof(t), "%s 就绪 [F]", skillName);
             settextcolor(RGB(100, 255, 100));
-            outtextxy(x, y + 40, t);
+            outtextxy_u8(x, y + 40, t);
         }
 
         // 坦克类型标签
@@ -586,17 +587,17 @@ void GameLoop::drawHUD() {
         }
         settextcolor(RGB(180, 180, 180));
         settextstyle(12, 0, "宋体");
-        outtextxy(x, y + 68, tankTypeName);
+        outtextxy_u8(x, y + 68, tankTypeName);
 
         // 本局统计
         snprintf(t, sizeof(t), "伤害:%d  击杀:%d", m_totalDamage, m_kills);
-        outtextxy(x, y + 84, t);
+        outtextxy_u8(x, y + 84, t);
     }
 
     if (m_enemyTank) {
         int x = MapConfig::WIDTH - 170, y = 10, bw = 120, bh = 12;
         settextstyle(18, 0, "黑体"); settextcolor(WHITE);
-        outtextxy(x, y, "敌人");
+        outtextxy_u8(x, y, "敌人");
 
         float r = (float)m_enemyTank->getCurHP() / m_enemyTank->getMaxHP();
         setfillcolor(RGB(60, 60, 60));
@@ -613,10 +614,10 @@ void GameLoop::drawHUD() {
         // 敌人技能指示
         if (m_enemyTank->isShieldActive()) {
             settextcolor(RGB(100, 200, 255));
-            outtextxy(x, y + 40, "护盾激活中");
+            outtextxy_u8(x, y + 40, "护盾激活中");
         } else if (m_enemyTank->isSprintActive()) {
             settextcolor(RGB(255, 200, 50));
-            outtextxy(x, y + 40, "冲刺激活中");
+            outtextxy_u8(x, y + 40, "冲刺激活中");
         }
 
         // 敌人坦克类型
@@ -628,13 +629,13 @@ void GameLoop::drawHUD() {
         }
         settextcolor(RGB(180, 180, 180));
         settextstyle(12, 0, "宋体");
-        outtextxy(x, y + 54, enemyTypeName);
+        outtextxy_u8(x, y + 54, enemyTypeName);
     }
 
     // 底部操作提示
     settextstyle(14, 0, "宋体");
     settextcolor(RGB(150, 150, 150));
-    outtextxy(MapConfig::WIDTH / 2 - 100, MapConfig::HEIGHT - 25,
+    outtextxy_u8(MapConfig::WIDTH / 2 - 100, MapConfig::HEIGHT - 25,
               "WASD移动  空格射击  F技能");
 }
 
@@ -654,9 +655,9 @@ void GameLoop::draw() {
         bool win=m_enemyTank&&!m_enemyTank->isAlive();
         settextcolor(win?RGB(50,255,50):RGB(255,50,50));
         const char* txt=win?"胜  利!":"败  北!";
-        int tw=textwidth(txt); outtextxy((MapConfig::WIDTH-tw)/2,MapConfig::HEIGHT/2-30,txt);
+        int tw=textwidth_u8(txt); outtextxy_u8((MapConfig::WIDTH-tw)/2,MapConfig::HEIGHT/2-30,txt);
         settextstyle(20,0,"宋体"); settextcolor(RGB(200,200,200));
-        outtextxy(MapConfig::WIDTH/2-80,MapConfig::HEIGHT/2+30,"按 ESC 返回主菜单");
+        outtextxy_u8(MapConfig::WIDTH/2-80,MapConfig::HEIGHT/2+30,"按 ESC 返回主菜单");
     }
     FlushBatchDraw();
 }
