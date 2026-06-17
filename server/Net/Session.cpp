@@ -43,7 +43,6 @@ void Session::Send(MsgID id, const void* body, uint16_t bodyLen) {
     }
 }
 
-// ============ Message Handlers ============
 
 // LoginBody 结构：char username[32] + char password[32] = 64 字节
 // password 字段从偏移 32 处开始，不能简单用 body + strlen(account) + 1
@@ -174,7 +173,6 @@ void ProcessMsg(Session* session, MsgID msgId, const char* body, int bodyLen) {
     }
 }
 
-// ============ Recv Thread ============
 
 void RecvThread(Session* session) {
     char tempBuf[BUFFER_SIZE];
@@ -209,7 +207,6 @@ void RecvThread(Session* session) {
         }
     }
 
-    // Notify room of disconnect via atomic flag
     if (session->currentRoom) {
         int slot = session->currentRoom->GetSlot(session->playerID);
         if (slot >= 0) {

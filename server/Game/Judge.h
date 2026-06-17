@@ -69,4 +69,4 @@ inline void PushCircleOutOfRect(Vec2& circlePos, float radius,
     }
 }
 
-} // namespace Judge
+}

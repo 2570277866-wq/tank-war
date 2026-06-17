@@ -78,7 +78,6 @@ bool Room::SelectTank(int playerID, TankType type) {
     Logger::Get().Game("玩家 " + playerNames[slot] +
                        " 选择坦克类型=" + std::to_string((int)type));
 
-    // Both players have selected, start game
     if (tankSelected[0] && tankSelected[1]) {
         StartGame();
     }

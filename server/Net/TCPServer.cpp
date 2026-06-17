@@ -204,7 +204,6 @@ bool TCPServer::HandleReconnect(int newPlayerID, const std::string& username, Se
     return false;
 }
 
-// ============ Accept Loop ============
 
 void TCPServer::AcceptLoop() {
     Logger::Get().Info("等待客户端连接...");
@@ -254,8 +253,6 @@ void TCPServer::AcceptLoop() {
         session->StartRecv();
     }
 }
-
-// ============ Game Tick Loop ============
 
 void TCPServer::GameTickLoop() {
     while (running) {
